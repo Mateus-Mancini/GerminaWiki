@@ -1,0 +1,34 @@
+# PR checks (required on main) and the reusable check stage of release.yml.
+# Contract: ms-germina-wiki specs/003-ci-cd/contracts/pipelines.md. Nothing here touches production.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Static export: fails if a server-only feature is used.
+      - name: Build static site
+        run: npm run build
+
+      - name: Check static output
+        run: test -f out/index.html

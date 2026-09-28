@@ -1,0 +1,9 @@
+export type RemotePage={id:string;title:string;path:string;content:string;version:number};
+type SearchResult={id:string;title:string;path:string;groupId:string};
+const baseUrl=(import.meta as ImportMeta&{env?:{VITE_API_BASE_URL?:string}}).env?.VITE_API_BASE_URL?.replace(/\/$/,'')??'http://localhost:3000';
+const tokenKey='germinawiki-token';
+export function hasApiSession(){return Boolean(localStorage.getItem(tokenKey));}
+async function request<T>(path:string,init:RequestInit={}):Promise<T>{const token=localStorage.getItem(tokenKey);const response=await fetch(`${baseUrl}${path}`,{...init,headers:{...(token?{authorization:`Bearer ${token}`}:{ }),'content-type':'application/json',...(init.headers??{})}});if(!response.ok){const payload=await response.json().catch(()=>null);throw new Error(payload?.error?.message??`Falha na API (${response.status}).`);}return response.json() as Promise<T>;}
+export async function signIn(email:string,password:string){const result=await request<{session:{token?:string}}>('/session/login',{method:'POST',body:JSON.stringify({email,password})});if(result.session.token)localStorage.setItem(tokenKey,result.session.token);}
+export async function findSubjectPage(subject:string):Promise<RemotePage|null>{if(!hasApiSession())return null;const results=await request<{items:SearchResult[]}>(`/pages/search?q=${encodeURIComponent(subject)}`);const match=results.items.find(item=>item.title.trim().toLocaleLowerCase('pt-BR')===subject.trim().toLocaleLowerCase('pt-BR'));if(!match)return null;const result=await request<{page:RemotePage}>(`/pages/${encodeURIComponent(match.id)}`);return result.page;}
+export async function publishContribution(pageId:string,body:string){return request<{comment?:{id:string};thread?:unknown}>(`/pages/${encodeURIComponent(pageId)}/comment-threads`,{method:'POST',body:JSON.stringify({anchor:null,body})});}

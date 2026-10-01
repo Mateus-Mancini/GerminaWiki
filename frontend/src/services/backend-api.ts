@@ -1,7 +1,8 @@
 export type RemotePage={id:string;title:string;slug:string;content:string;version:number;folderId:string|null;createdAt?:string;updatedAt?:string};
 export type FolderNode={id:string;name:string;parentFolderId:string|null;children:FolderNode[]};
-const baseUrl=(import.meta as ImportMeta&{env?:{VITE_API_BASE_URL?:string}}).env?.VITE_API_BASE_URL?.replace(/\/$/,'')??'http://localhost:8080';
-async function request<T>(path:string,init:RequestInit={}):Promise<T>{const response=await fetch(`${baseUrl}${path}`,{...init,headers:{'content-type':'application/json',...(init.headers??{})}});if(!response.ok){const payload=await response.json().catch(()=>null);const message=typeof payload?.error==='string'?payload.error:payload?.error?.message??`Falha na API (${response.status}).`;throw new Error(message);}if(response.status===204)return undefined as T;return response.json() as Promise<T>;}
+const env=(import.meta as ImportMeta&{env?:{VITE_API_BASE_URL?:string;DEV?:boolean}}).env;
+const baseUrl=env?.VITE_API_BASE_URL?.replace(/\/$/,'')||(env?.DEV?'http://localhost:8080':'');
+async function request<T>(path:string,init:RequestInit={}):Promise<T>{if(!baseUrl)throw new Error('URL do backend não configurada. Defina VITE_API_BASE_URL no ambiente de build.');const response=await fetch(`${baseUrl}${path}`,{...init,headers:{'content-type':'application/json',...(init.headers??{})}});if(!response.ok){const payload=await response.json().catch(()=>null);const message=typeof payload?.error==='string'?payload.error:payload?.error?.message??`Falha na API (${response.status}).`;throw new Error(message);}if(response.status===204)return undefined as T;return response.json() as Promise<T>;}
 export async function listFolders(){return request<FolderNode[]>('/api/folders/tree');}
 export async function listPages(){return request<RemotePage[]>('/api/pages');}
 export async function getPage(id:string){return request<RemotePage>(`/api/pages/${encodeURIComponent(id)}`);}

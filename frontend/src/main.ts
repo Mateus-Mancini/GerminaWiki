@@ -1,5 +1,6 @@
 import './styles.css';
 import './course.css';
+import './login.css';
 import { ApiRequestError, createContributionPage, getPage, listFolders, listPages, type FolderNode, type RemotePage } from './services/backend-api.js';
 
 let query = '';

@@ -41,11 +41,15 @@ vez de tentar acessar o `localhost` de cada visitante.
 O workflow de publicação usa a variável `VITE_API_BASE_URL` do ambiente GitHub Actions
 `production`, com a URL oficial da API como padrão.
 
+O login envia e-mail e senha para `POST /api/auth/login`. O token Bearer fica em
+`sessionStorage` somente até o vencimento informado pela API ou até o usuário sair; ele é
+incluído nas chamadas autenticadas de pastas, páginas, busca, contribuições e perfil. Ao
+receber `401`, a sessão é descartada e o frontend volta para a tela de login. O perfil próprio
+é carregado por `GET /api/users/me` e pode ser atualizado por `PATCH /api/users/me`.
+
 Todas as pastas, páginas, matérias e conteúdos exibidos vêm da API. Se ela estiver
-indisponível ou negar acesso, o frontend mostra o erro e não substitui os dados por conteúdo
-de demonstração. As rotas de dados exigem autenticação na configuração Spring Security,
-mas o repositório não define login nem formato de credencial para o frontend. Criar conteúdo
-também exige um principal autenticado.
-O esquema do banco não inclui dados iniciais de matérias. As pastas e páginas precisam ser
-cadastradas no backend para aparecer no site. Contribuições são publicadas como páginas
-novas em `POST /api/pages`, dentro da pasta da página aberta.
+indisponível, o frontend mostra o erro e não substitui os dados por conteúdo de demonstração.
+O `@AdminOnly` do backend é um mecanismo de autorização para operações que o backend marcar;
+ele não cria rotas administrativas por si só. O esquema do banco não inclui dados iniciais de
+matérias. As pastas e páginas precisam ser cadastradas no backend para aparecer no site.
+Contribuições são publicadas como páginas novas em `POST /api/pages`, dentro da pasta aberta.

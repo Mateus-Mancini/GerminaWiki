@@ -1,6 +1,6 @@
 import './styles.css';
 import './course.css';
-import { createContributionPage, getPage, listFolders, listPages, type FolderNode, type RemotePage } from './services/backend-api.js';
+import { ApiRequestError, createContributionPage, getPage, listFolders, listPages, type FolderNode, type RemotePage } from './services/backend-api.js';
 
 let query = '';
 let selectedFolder = 'all';
@@ -9,6 +9,7 @@ let pages: RemotePage[] = [];
 let folders: FolderNode[] = [];
 let notice = '';
 let loading = true;
+let loginRequired = false;
 
 const esc = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const flattenFolders = (nodes: FolderNode[]): FolderNode[] => nodes.flatMap(node => [node, ...flattenFolders(node.children ?? [])]);
@@ -33,8 +34,11 @@ function folderTree(nodes: FolderNode[], depth = 0): string {
 function render() {
   const items = visiblePages();
   const yearFolders = folders.map(folder => `<option value="${esc(folder.id)}" ${selectedFolder === folder.id ? 'selected' : ''}>${esc(folder.name)}</option>`).join('');
-  document.querySelector('#root')!.innerHTML = `<div class="app-shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Seu espaço de aprendizagem</small></span></div><div class="side-caption">WORKSPACE</div>${folders.length ? `<nav class="api-navigation">${folderTree(folders)}</nav>` : '<p class="empty-inline">O backend não retornou pastas.</p>'}<div class="sidebar-footer">Conteúdo do workspace</div></aside><main class="main"><header class="topbar"><div class="breadcrumbs"><button id="go-home" class="breadcrumb-button">Início</button>${selectedPage ? `<span> / </span><strong>${esc(selectedPage.title)}</strong>` : ''}</div><div class="top-actions"><label class="search"><span>⌕</span><input id="search" placeholder="Buscar no workspace..." value="${esc(query)}" aria-label="Buscar no workspace"/><kbd>/</kbd></label></div></header>${selectedPage ? renderPage(selectedPage) : renderCatalog(items, yearFolders)}</main></div>${renderContributionDialog()}${notice ? `<div class="toast" role="status">${esc(notice)}</div>` : ''}`;
+  document.querySelector('#root')!.innerHTML = loginRequired ? renderLogin() : `<div class="app-shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Seu espaço de aprendizagem</small></span></div><div class="side-caption">WORKSPACE</div>${folders.length ? `<nav class="api-navigation">${folderTree(folders)}</nav>` : '<p class="empty-inline">O backend não retornou pastas.</p>'}<div class="sidebar-footer">Conteúdo do workspace</div></aside><main class="main"><header class="topbar"><div class="breadcrumbs"><button id="go-home" class="breadcrumb-button">Início</button>${selectedPage ? `<span> / </span><strong>${esc(selectedPage.title)}</strong>` : ''}</div><div class="top-actions"><label class="search"><span>⌕</span><input id="search" placeholder="Buscar no workspace..." value="${esc(query)}" aria-label="Buscar no workspace"/><kbd>/</kbd></label></div></header>${selectedPage ? renderPage(selectedPage) : renderCatalog(items, yearFolders)}</main></div>${renderContributionDialog()}${notice ? `<div class="toast" role="status">${esc(notice)}</div>` : ''}`;
   bind();
+}
+function renderLogin() {
+  return `<main class="login-screen"><div class="login-brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Conhecimento compartilhado</small></span></div><section class="login-card"><div class="login-symbol">G</div><div class="eyebrow">ACESSO DO ALUNO</div><h1>Bem-vindo de volta</h1><p>Entre com sua conta escolar para acessar os conteúdos e contribuir com a comunidade.</p><form id="login-form"><label for="login-email">E-mail escolar</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="nome@escola.com.br" required/><label for="login-password">Senha</label><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required/><div id="login-error" class="login-error" role="alert">${loginRequired ? 'A API solicitou autenticação para acessar o workspace.' : ''}</div><button class="primary-button login-submit" type="submit">Entrar <span>→</span></button></form><small class="login-footnote">A autenticação será concluída pelo serviço da escola.</small></section><footer class="login-footer">Instituto Germinare · Ambiente de aprendizagem</footer></main>`;
 }
 function renderCatalog(items: RemotePage[], folderOptions: string) {
   if (loading) return '<section class="content"><p class="empty">Carregando conteúdo do backend…</p></section>';
@@ -76,6 +80,7 @@ function bind() {
   document.querySelector('#open-contribution')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#contribution-dialog')?.showModal());
   document.querySelectorAll<HTMLElement>('[data-close-dialog]').forEach(button => button.addEventListener('click', () => document.querySelector<HTMLDialogElement>(`#${button.dataset.closeDialog}`)?.close()));
   document.querySelector<HTMLFormElement>('#contribution-form')?.addEventListener('submit', event => { void contribute(event); });
+  document.querySelector<HTMLFormElement>('#login-form')?.addEventListener('submit', event => { event.preventDefault(); const error = document.querySelector<HTMLElement>('#login-error'); if (error) error.textContent = 'O backend ainda não disponibiliza uma rota de login. Seus dados não foram enviados.'; });
 }
 async function openPage(id: string) {
   try { selectedPage = await getPage(id); notice = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -100,7 +105,7 @@ async function contribute(event: SubmitEvent) {
 }
 async function loadWorkspace() {
   try { [folders, pages] = await Promise.all([listFolders(), listPages()]); }
-  catch (error) { notice = error instanceof Error ? `Não foi possível carregar o workspace: ${error.message}` : 'Não foi possível carregar o workspace.'; }
+  catch (error) { if (error instanceof ApiRequestError && error.status === 401) loginRequired = true; else notice = error instanceof Error ? `Não foi possível carregar o workspace: ${error.message}` : 'Não foi possível carregar o workspace.'; }
   finally { loading = false; render(); }
 }
 document.addEventListener('keydown', event => { if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });

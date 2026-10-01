@@ -37,8 +37,9 @@ O frontend tenta carregar pastas e páginas automaticamente ao abrir. Configure
 `VITE_API_BASE_URL` para a URL base do backend (padrão local: `http://localhost:8080`).
 O Vite roda na porta `3000`, liberada pelo CORS local do backend.
 
-O backend exige um principal autenticado nas rotas de páginas e pastas; o mecanismo de
-autenticação é responsabilidade da infraestrutura e não está definido pela API. Se ela não
-encaminhar a identidade, o frontend mostra o erro e mantém acessíveis os materiais locais.
-Quando a API está disponível, contribuições são publicadas como páginas novas em
-`POST /api/pages` dentro da pasta do ano. Sem API, ficam salvas neste navegador.
+Todas as pastas, páginas, matérias e conteúdos exibidos vêm da API. Se ela estiver
+indisponível ou negar acesso, o frontend mostra o erro e não substitui os dados por conteúdo
+de demonstração. O backend exige um principal autenticado para criar conteúdo; o mecanismo
+de autenticação é responsabilidade da infraestrutura e não está definido pela API.
+Contribuições são publicadas como páginas novas em `POST /api/pages`, dentro da pasta da
+página aberta.

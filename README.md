@@ -38,11 +38,14 @@ usa `http://localhost:8080` por padrão; em produção, configure `VITE_API_BASE
 URL base do backend no ambiente de build. O Vite roda na porta `3000`, liberada pelo CORS
 local do backend. Sem a variável de produção, o frontend mostra um erro de configuração em
 vez de tentar acessar o `localhost` de cada visitante.
+O workflow de publicação lê essa URL da variável `VITE_API_BASE_URL` do ambiente GitHub
+Actions `production`.
 
 Todas as pastas, páginas, matérias e conteúdos exibidos vêm da API. Se ela estiver
 indisponível ou negar acesso, o frontend mostra o erro e não substitui os dados por conteúdo
-de demonstração. O backend exige um principal autenticado para criar conteúdo; o mecanismo
-de autenticação é responsabilidade da infraestrutura e não está definido pela API.
+de demonstração. As rotas de dados exigem autenticação na configuração Spring Security,
+mas o repositório não define login nem formato de credencial para o frontend. Criar conteúdo
+também exige um principal autenticado.
 O esquema do banco não inclui dados iniciais de matérias. As pastas e páginas precisam ser
 cadastradas no backend para aparecer no site. Contribuições são publicadas como páginas
 novas em `POST /api/pages`, dentro da pasta da página aberta.

@@ -1,0 +1,46 @@
+# Publishes the static site to Firebase Hosting (live) on every merge to main.
+# Contract: ms-germina-wiki specs/003-ci-cd/contracts/pipelines.md. There is only production.
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://germinawiki.web.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Publish to Firebase Hosting (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GERMINAWIKI }}
+          projectId: germinawiki
+          channelId: live

@@ -5,3 +5,7 @@ coverage/
 *.log
 .env*
 .vite/
+
+# firebase
+firebase-debug.log
+.firebase/

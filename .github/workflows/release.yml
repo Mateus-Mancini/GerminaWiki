@@ -37,7 +37,7 @@ jobs:
 
       - run: npm run build
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://ih744ae7njca2on6vmsuutp7p40yosgh.lambda-url.sa-east-1.on.aws' }}
 
       - name: Publish to Firebase Hosting (live)
         uses: FirebaseExtended/action-hosting-deploy@v0

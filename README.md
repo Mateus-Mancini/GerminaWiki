@@ -38,8 +38,8 @@ usa `http://localhost:8080` por padrão; em produção, configure `VITE_API_BASE
 URL base do backend no ambiente de build. O Vite roda na porta `3000`, liberada pelo CORS
 local do backend. Sem a variável de produção, o frontend mostra um erro de configuração em
 vez de tentar acessar o `localhost` de cada visitante.
-O workflow de publicação lê essa URL da variável `VITE_API_BASE_URL` do ambiente GitHub
-Actions `production`.
+O workflow de publicação usa a variável `VITE_API_BASE_URL` do ambiente GitHub Actions
+`production`, com a URL oficial da API como padrão.
 
 Todas as pastas, páginas, matérias e conteúdos exibidos vêm da API. Se ela estiver
 indisponível ou negar acesso, o frontend mostra o erro e não substitui os dados por conteúdo

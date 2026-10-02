@@ -1,0 +1,348 @@
+/* Base: the page, browser surfaces and the shared controls. Values come from tokens.css only. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--text-ui) / 1.5 var(--font-sans);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--ink);
+  scrollbar-color: color-mix(in srgb, var(--ink-faint) 55%, transparent) transparent;
+}
+
+::selection {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+h1, h2, h3, h4, p, ol, ul, figure, blockquote {
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+}
+
+a {
+  color: var(--link);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--link) 45%, transparent);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-small);
+}
+
+.icon {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+kbd {
+  font: 600 0.75rem/1 var(--font-sans);
+  padding: 3px 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-small);
+  opacity: 0.7;
+}
+
+/* Buttons: one family. Secondary is the default; primary is ink on paper turned around. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 var(--text-ui-small) / 1 var(--font-sans);
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--duration-lift) var(--ease-out), border-color var(--duration-lift) var(--ease-out), transform var(--duration-lift) var(--ease-out);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--highlight);
+  border-color: color-mix(in srgb, var(--ink) 50%, transparent);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button--primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button--primary:hover:not(:disabled) {
+  border-color: var(--link);
+  background: var(--link);
+}
+
+.button--quiet {
+  border-color: transparent;
+  background: transparent;
+}
+
+.button--danger {
+  color: var(--link-missing);
+  border-color: color-mix(in srgb, var(--link-missing) 45%, transparent);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--link-missing) 10%, var(--paper));
+}
+
+/* Fields: written on a line, like the notebook's own forms. */
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.field > span,
+.field > label {
+  color: var(--ink-soft);
+  font: 600 var(--text-ui-small) / 1.4 var(--font-sans);
+}
+
+.field input,
+.field textarea,
+.field select,
+.input {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 40%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 1rem / 1.5 var(--font-sans);
+  transition: border-color var(--duration-lift) var(--ease-out), background-color var(--duration-lift) var(--ease-out);
+}
+
+.field textarea {
+  min-height: calc(var(--rule) * 4);
+  resize: vertical;
+  line-height: var(--rule);
+  padding-top: 0;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 calc(var(--rule) - 1px), var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+  background-attachment: local;
+}
+
+.field input:hover,
+.field textarea:hover {
+  border-bottom-color: var(--ink);
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible,
+.input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--link);
+  background-color: color-mix(in srgb, var(--highlight) 45%, transparent);
+  box-shadow: 0 2px 0 var(--link);
+}
+
+::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+.form-error {
+  min-height: 1.4em;
+  color: var(--link-missing);
+  font: 500 var(--text-ui-small) / 1.4 var(--font-sans);
+}
+
+.form-error:empty {
+  min-height: 0;
+}
+
+/* Dialogs: a sheet laid over the notebook. */
+.sheet-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+}
+
+.sheet-dialog::backdrop {
+  background: rgb(27 39 65 / 0.42);
+}
+
+.sheet-dialog[open] {
+  animation: dialog-in var(--duration-turn) var(--ease-out);
+}
+
+.sheet-dialog form {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+}
+
+.sheet-dialog h2 {
+  font: 400 1.75rem / 1.15 var(--font-serif);
+  letter-spacing: -0.01em;
+  padding-right: var(--space-6);
+}
+
+.sheet-dialog p {
+  color: var(--ink-soft);
+  font-size: var(--text-ui);
+  line-height: 1.55;
+}
+
+.dialog-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+/* The notice: a slip of paper with a pen check. */
+.notice {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(420px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  font: 500 var(--text-ui) / 1.4 var(--font-sans);
+  animation: notice-in var(--duration-turn) var(--ease-out);
+}
+
+.notice > .icon {
+  color: var(--link);
+}
+
+.notice .button {
+  min-height: 32px;
+  width: 32px;
+  padding: 0;
+}
+
+@keyframes notice-in {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-dialog[open],
+  .notice {
+    animation: fade-in var(--duration-fade) linear;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+/* Print: the sheet only (FR-022). */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .binder,
+  .topbar,
+  .notice,
+  .sheet__actions,
+  .sheet__foot,
+  .sections,
+  .crumbs,
+  #editor-root {
+    display: none !important;
+  }
+
+  .sheet {
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  .sheet::after {
+    display: none !important;
+  }
+}

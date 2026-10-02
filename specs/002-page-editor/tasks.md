@@ -113,7 +113,7 @@ The codec is the data-integrity core: every save goes through it.
   - unsaved-changes guard (`beforeunload`)
   - pt-BR messages from contracts/pages-api.md
 - [X] T018 [US1] `frontend/src/editor/index.ts`: `openPageEditor`/`preloadPageEditor` with a dynamic `import('./PageEditor')` (a separate chunk, R10), `EditorHandle`, host show/hide, focus management
-- [ ] T019 [US1] `frontend/src/editor/editor.css`: editing surface, using the shell's existing CSS tokens; `prefers-reduced-motion` respected; visible focus
+- [X] T019 [US1] `frontend/src/editor/editor.css`: editing surface, using the shell's existing CSS tokens; `prefers-reduced-motion` respected; visible focus
 - [ ] T020 [US1] Shell integration in `frontend/index.html` (`<div id="editor-root" hidden>`) and `frontend/src/main.ts`:
   - an "Editar" button `#edit-page` in `renderPage`
   - the `openPageEditor` call

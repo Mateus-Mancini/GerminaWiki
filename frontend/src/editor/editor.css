@@ -1,0 +1,270 @@
+/* Page editor (editor-ui). Colours and type follow the shell (frontend/src/styles.css). */
+
+:root {
+  --editor-ink: #203a34;
+  --editor-ink-soft: #5f7469;
+  --editor-line: #e3e8df;
+  --editor-paper: #fffffd;
+  --editor-canvas: #f6f7f2;
+  --editor-accent: #1d5543;
+  --editor-accent-hover: #267355;
+  --editor-focus: #4e9877;
+  --editor-danger: #a63d36;
+  --editor-danger-soft: #fbefed;
+  --editor-sidebar: 258px; /* the shell's sidebar column */
+}
+
+/* While editing, the editor takes the main column; the shell keeps its sidebar. */
+#editor-root:not([hidden]) {
+  position: fixed;
+  inset: 0 0 0 var(--editor-sidebar);
+  z-index: 3;
+  overflow-y: auto;
+  background: var(--editor-canvas);
+}
+
+.page-editor {
+  min-height: 100%;
+  color: var(--editor-ink);
+}
+
+.page-editor__bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 64px;
+  padding: 0 5.5%;
+  border-bottom: 1px solid var(--editor-line);
+  background: #fafbf8;
+}
+
+.page-editor__mode {
+  font: 700 10px/1 'DM Sans', sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--editor-accent);
+}
+
+.page-editor__status {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  color: var(--editor-ink-soft);
+}
+
+.page-editor__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.page-editor button {
+  border: 1px solid var(--editor-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--editor-ink);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.page-editor button:hover:not(:disabled) {
+  border-color: #b9cbbd;
+}
+
+.page-editor button:focus-visible,
+.page-editor__title:focus-visible,
+.raw-markdown__source:focus-visible {
+  outline: 2px solid var(--editor-focus);
+  outline-offset: 2px;
+}
+
+.page-editor .page-editor__save {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent);
+  color: #fff;
+  min-width: 132px;
+}
+
+.page-editor .page-editor__save:hover:not(:disabled) {
+  background: var(--editor-accent-hover);
+}
+
+.page-editor .page-editor__save:disabled {
+  border-color: var(--editor-line);
+  background: #eef1eb;
+  color: #7b8b82;
+  cursor: default;
+}
+
+.page-editor .page-editor__danger {
+  border-color: var(--editor-danger);
+  background: var(--editor-danger);
+  color: #fff;
+}
+
+.page-editor__alert {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 780px;
+  margin: 20px auto 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--editor-danger);
+  border-radius: 6px;
+  background: var(--editor-danger-soft);
+  color: #6d2620;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page-editor__alert p {
+  margin: 0;
+}
+
+.page-editor--failed {
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  padding: 48px 20px;
+}
+
+/* The sheet mirrors the reading width, so editing looks like the page being read. */
+.page-editor__sheet {
+  max-width: 780px;
+  margin: 32px auto 80px;
+  padding: 40px 48px 56px;
+  border: 1px solid var(--editor-line);
+  border-radius: 12px;
+  background: var(--editor-paper);
+}
+
+.page-editor__title {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 0 0 10px;
+  margin-bottom: 18px;
+  background: transparent;
+  color: #163e36;
+  font: 800 clamp(28px, 3.4vw, 40px)/1.12 Manrope, sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.page-editor__title[aria-invalid='true'] {
+  border-bottom-color: var(--editor-danger);
+}
+
+.page-editor__field-error {
+  margin: -10px 0 16px;
+  color: var(--editor-danger);
+  font-size: 12px;
+}
+
+/* BlockNote: align its text with the title, use the shell's fonts. */
+.page-editor .bn-container {
+  --bn-font-family: 'DM Sans', sans-serif;
+}
+
+.page-editor .bn-editor {
+  padding-inline: 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.raw-markdown {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed #c9d5c9;
+  border-radius: 8px;
+  background: #f7f9f5;
+}
+
+.raw-markdown__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--editor-ink-soft);
+}
+
+.raw-markdown__source {
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: var(--editor-ink);
+  font: 13px/1.6 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+.page-editor__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #132e27a8;
+}
+
+.page-editor__dialog {
+  width: min(420px, 100%);
+  padding: 28px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 80px #0f29233d;
+}
+
+.page-editor__dialog h2 {
+  margin: 0 0 8px;
+  color: #173e35;
+  font: 800 22px Manrope, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.page-editor__dialog p {
+  margin: 0 0 22px;
+  color: var(--editor-ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.page-editor__dialog .page-editor__actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  #editor-root:not([hidden]) {
+    inset: 0;
+  }
+
+  .page-editor__bar {
+    padding: 0 16px;
+  }
+
+  .page-editor__mode {
+    display: none;
+  }
+
+  .page-editor__sheet {
+    margin: 0;
+    padding: 24px 18px 48px;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-editor *,
+  .page-editor *::before,
+  .page-editor *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

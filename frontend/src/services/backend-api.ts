@@ -378,3 +378,14 @@ export function updateFolder(id: string, change: { name?: string; parentFolderId
 export function deleteFolder(id: string) {
   return request<void>(`/api/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+/** Moves a page to another folder, under the same version check as any other edit. */
+export async function movePage(id: string, folderId: string) {
+  const { etag } = await getPageForEdit(id);
+  const response = await send(`/api/pages/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'if-match': etag },
+    body: JSON.stringify({ folderId })
+  });
+  if (!response.ok) throw new ApiRequestError((await errorPayload(response)).message, response.status);
+}

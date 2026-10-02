@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { EditorApi } from '../../src/editor/PageEditor';
 
 // contracts/editor-mount.md: the shell ↔ editor contract.
+// The first test imports the editor chunk cold (BlockNote, ProseMirror), which can exceed 5 s on a busy machine.
+vi.setConfig({ testTimeout: 20_000 });
 const page = { id: 'p1', title: 'Física', slug: 'fisica', content: 'Texto.\n', version: 1, folderId: 'f1' };
 const api: EditorApi = {
   getPageForEdit: vi.fn(async () => ({ page, etag: '"p1-v1"' })),

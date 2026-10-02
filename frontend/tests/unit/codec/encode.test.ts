@@ -47,6 +47,7 @@ describe('encode with edits', () => {
     expect(out).toBe(`<!--b:${A1}-->\nDepois.\n`);
   });
 
+  // Edited and new segments use BlockNote's Markdown style (`*` bullets); untouched ones keep theirs.
   test('new blocks get fresh anchors; a run of list items stays one list', () => {
     const decoded = decode(`<!--b:${A1}-->\nUm.\n`, converter);
     const list = converter.parse('- a\n- b\n');
@@ -55,7 +56,7 @@ describe('encode with edits', () => {
     const out = encode(decoded, doc, converter, () => ids.shift()!);
     expect(out).toBe(
       `<!--b:${A1}-->\nUm.\n\n<!--b:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa-->\nNovo.\n\n` +
-      `<!--b:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb-->\n- a\n- b\n`
+      `<!--b:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb-->\n* a\n* b\n`
     );
   });
 

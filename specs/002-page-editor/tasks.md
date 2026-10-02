@@ -22,10 +22,10 @@ description: "Task list for 002-page-editor"
 
 ## Phase 1: Setup
 
-- [ ] T001 Add dependencies to `package.json`: `@blocknote/core`, `@blocknote/react` and `@blocknote/ariakit` pinned to `~0.55.0`, `marked` `^18`, `diff` `^9`; dev: `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/dom`, `vitest-axe` (research R1, R13). Commit the lockfile.
-- [ ] T002 Configure Vitest in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, `test.include: ['tests/**/*.test.{ts,tsx}']`, setup file `frontend/tests/setup.ts` registering `vitest-axe` matchers), and include `tests` in `frontend/tsconfig.json`
-- [ ] T003 [P] Create the editor module skeleton under `frontend/src/editor/` (empty `index.ts`, `editor.css`) and `frontend/tests/{unit,contract,component,integration}/` per plan.md
-- [ ] T004 [P] Make the Spec Kit bash scripts executable (`git update-index --chmod=+x .specify/scripts/bash/*.sh`). They lacked the bit, so `setup-plan.sh` failed with "permission denied".
+- [X] T001 Add dependencies to `package.json`: `@blocknote/core`, `@blocknote/react` and `@blocknote/ariakit` pinned to `~0.55.0`, `marked` `^18`, `diff` `^9`; dev: `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/dom`, `vitest-axe` (research R1, R13). Commit the lockfile.
+- [X] T002 Configure Vitest in `frontend/vite.config.ts` (`test.environment: 'jsdom'`, `test.include: ['tests/**/*.test.{ts,tsx}']`, setup file `frontend/tests/setup.ts` registering `vitest-axe` matchers), and include `tests` in `frontend/tsconfig.json`
+- [X] T003 [P] Create the editor module skeleton under `frontend/src/editor/` (empty `index.ts`, `editor.css`) and `frontend/tests/{unit,contract,component,integration}/` per plan.md
+- [X] T004 [P] Make the Spec Kit bash scripts executable (`git update-index --chmod=+x .specify/scripts/bash/*.sh`). They lacked the bit, so `setup-plan.sh` failed with "permission denied".
 
 **Checkpoint**: `npm test` runs (no tests yet); `npm run build` passes
 
@@ -37,16 +37,16 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T005 [P] `frontend/tests/unit/codec/anchors.test.ts`:
+- [X] T005 [P] `frontend/tests/unit/codec/anchors.test.ts`:
   - parses only lines that are exactly `<!--b:<uuid>-->` (lowercase UUID)
   - neutralises anchor-like text inside blocks (`<!--b:` → `&lt;!--b:`)
   - de-duplicates repeated ids (first occurrence keeps the anchor)
-- [ ] T006 [P] `frontend/tests/unit/codec/decode.test.ts`:
+- [X] T006 [P] `frontend/tests/unit/codec/decode.test.ts`:
   - anchors attach to the **next** segment and become its first block's id
   - lists, code fences, tables and blank lines form the expected segments
   - content without anchors decodes
   - unfaithful segments (raw HTML, footnotes, reference links) become one `rawMarkdown` block (research R4)
-- [ ] T007 [P] `frontend/tests/unit/codec/encode.test.ts`:
+- [X] T007 [P] `frontend/tests/unit/codec/encode.test.ts`:
   - **decode → encode with no edits is byte-identical** (SC-007), including the spike fixture from research R2 (heading after an anchor, inline HTML, `-` bullets, `---`, padded tables)
   - editing one block re-serializes only its segment
   - new blocks get fresh anchors; list runs stay one segment
@@ -61,9 +61,9 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Implementation
 
-- [ ] T009 [P] `frontend/src/editor/codec/anchors.ts` (T005)
-- [ ] T010 `frontend/src/editor/codec/decode.ts`: `marked` lexer segmentation, per-segment `tryParseMarkdownToBlocks`, faithful check by comparing rendered HTML (R3, R4). Data-model `Segment` fields: `anchor`, `source`, `blockIds`, `snapshot`, `faithful`. (T006)
-- [ ] T011 `frontend/src/editor/codec/encode.ts`: the encode rule from data-model.md ("if a segment's blocks are present, in order, and deep-equal to `snapshot`, write `source` as it was"), anchors on their own line before each segment, blank-line separation, trailing newline preserved (T007)
+- [X] T009 [P] `frontend/src/editor/codec/anchors.ts` (T005)
+- [X] T010 `frontend/src/editor/codec/decode.ts`: `marked` lexer segmentation, per-segment `tryParseMarkdownToBlocks`, faithful check by comparing rendered HTML (R3, R4). Data-model `Segment` fields: `anchor`, `source`, `blockIds`, `snapshot`, `faithful`. (T006)
+- [X] T011 `frontend/src/editor/codec/encode.ts`: the encode rule from data-model.md ("if a segment's blocks are present, in order, and deep-equal to `snapshot`, write `source` as it was"), anchors on their own line before each segment, blank-line separation, trailing newline preserved (T007)
 - [ ] T012 [P] `frontend/src/editor/blocks/rawMarkdown.tsx`: custom BlockNote block (monospaced, editable, labelled "Markdown avançado")
 - [ ] T013 [P] Extend `frontend/src/services/backend-api.ts`:
   - `request()` can return headers

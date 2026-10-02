@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { RAW_BLOCK_TYPE } from '../../../src/editor/codec/anchors';
 import { decode } from '../../../src/editor/codec/decode';
+import { encode } from '../../../src/editor/codec/encode';
 import { A1, A2, A3, SPIKE_PAGE, testConverter } from './converter';
 
 const converter = testConverter();
@@ -42,14 +43,23 @@ describe('decode', () => {
     expect(raw).toMatchObject({ type: RAW_BLOCK_TYPE, props: { markdown: 'Linha com <span>html</span>.' } });
   });
 
+  test('an html block is kept as raw Markdown', () => {
+    const { blocks } = decode('<details><summary>Mais</summary>\n\nOculto\n</details>\n', converter);
+    expect(blocks.some(b => b.type === RAW_BLOCK_TYPE)).toBe(true);
+  });
+
+  // FR-011 asks for preservation, not for raw display: these round-trip through BlockNote as literal text.
   test.each([
     ['footnote', 'Texto[^1].\n\n[^1]: Nota.\n'],
-    ['reference link', 'Veja [o site][ref].\n\n[ref]: https://x.com\n'],
-    ['html block', '<details><summary>Mais</summary>\n\nOculto\n</details>\n']
-  ])('%s is kept as raw Markdown', (_name, markdown) => {
-    const { segments, blocks } = decode(markdown, converter);
-    expect(segments.some(s => !s.faithful)).toBe(true);
-    expect(blocks.some(b => b.type === RAW_BLOCK_TYPE)).toBe(true);
+    ['reference link', 'Veja [o site][ref].\n\n[ref]: https://x.com\n']
+  ])('a %s survives editing another block of the page', (_name, markdown) => {
+    const decoded = decode(`${markdown}\nOutro bloco.\n`, converter);
+    const doc = structuredClone(decoded.blocks);
+    const other = doc.at(-1)!;
+    (other.content as { text: string }[])[0].text = 'Outro bloco editado.';
+    const out = encode(decoded, doc, converter, () => crypto.randomUUID());
+    expect(out.startsWith(markdown.trimEnd())).toBe(true);
+    expect(out).toContain('Outro bloco editado.');
   });
 
   test('faithful syntax variants (bullets, rules, padded tables) are not raw', () => {

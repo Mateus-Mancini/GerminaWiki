@@ -12,16 +12,19 @@ afterEach(cleanup);
 // that passes Testing Library's 1 s default for findBy*/waitFor, so allow 5 s.
 configure({ asyncUtilTimeout: 5_000 });
 
-// jsdom has no layout. BlockNote's side menu hit-tests the pointer position on mouse moves.
-Document.prototype.elementFromPoint ??= () => null;
-Document.prototype.elementsFromPoint ??= () => [];
-// BlockNote's suggestion menu stores the trigger's position with DOMRect.toJSON(), which jsdom lacks.
-const boundingRect = Element.prototype.getBoundingClientRect;
-Element.prototype.getBoundingClientRect = function (this: Element) {
-  const rect = boundingRect.call(this);
-  if (typeof rect.toJSON !== 'function') {
-    const { x, y, width, height, top, right, bottom, left } = rect;
-    Object.defineProperty(rect, 'toJSON', { value: () => ({ x, y, width, height, top, right, bottom, left }) });
-  }
-  return rect;
-};
+// DOM polyfills, for the jsdom environment only (a few tests run in node).
+if (typeof Document !== 'undefined') {
+  // jsdom has no layout. BlockNote's side menu hit-tests the pointer position on mouse moves.
+  Document.prototype.elementFromPoint ??= () => null;
+  Document.prototype.elementsFromPoint ??= () => [];
+  // BlockNote's suggestion menu stores the trigger's position with DOMRect.toJSON(), which jsdom lacks.
+  const boundingRect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function (this: Element) {
+    const rect = boundingRect.call(this);
+    if (typeof rect.toJSON !== 'function') {
+      const { x, y, width, height, top, right, bottom, left } = rect;
+      Object.defineProperty(rect, 'toJSON', { value: () => ({ x, y, width, height, top, right, bottom, left }) });
+    }
+    return rect;
+  };
+}

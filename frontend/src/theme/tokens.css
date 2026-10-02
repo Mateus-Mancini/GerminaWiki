@@ -1,0 +1,83 @@
+/*
+ * Design tokens: the only source of colour, type, space, radius and motion for the shell, the reader and
+ * the editor. Contract: specs/003-notebook-design/contracts/design-tokens.md (renaming one is breaking).
+ * The world: a class's shared caderno universitário. Cool ruled paper, ballpoint ink, cardstock dividers.
+ */
+:root {
+  /* Paper and ink */
+  --paper: #f8fafc;
+  --paper-shade: #eef3f9;
+  --rule-color: #c5d7ec;
+  --margin-color: #e2878a;
+  --ink: #1b2741;
+  --ink-soft: #46536e;
+  --ink-faint: #5d6a84;
+  --link: #1d4f9e;
+  --link-missing: #a3271d;
+  --cover: #1c2742;
+  --cover-ink: #e9eef7;
+  --cover-ink-soft: #a9b6cf;
+  --focus: var(--link);
+  --highlight: #d9e7f7;
+
+  /* Cardstock: one per subject, for edges, tabs and marks beside a name, never behind text */
+  --divider-0: #e4572e;
+  --divider-1: #f2a541;
+  --divider-2: #4fa868;
+  --divider-3: #5b9be0;
+  --divider-4: #b088d6;
+  --divider-5: #e0609a;
+  --divider-6: #23a3a8;
+  --divider-7: #c49a3a;
+
+  /* Type */
+  --font-serif: "Libertinus Serif", "Linux Libertine", Georgia, "Times New Roman", serif;
+  --font-sans: "Public Sans Variable", "Public Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  --text-body: 1.1875rem;
+  --text-headword: clamp(2.25rem, 1.6rem + 2.6vw, 3.4rem);
+  --text-h2: 1.625rem;
+  --text-h3: 1.3125rem;
+  --text-ui: 0.9375rem;
+  --text-ui-small: 0.8125rem;
+  --measure: 66ch;
+
+  /* Ruling and space */
+  --rule: 32px;
+  --rule-offset: 0px;
+  --margin-x: 88px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --binder-width: 288px;
+  --radius: 6px;
+  --radius-small: 4px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-turn: 240ms;
+  --duration-lift: 160ms;
+  --duration-fade: 120ms;
+
+  /* Depth: paper lifted off the desk, never a halo */
+  --shadow-sheet: 0 1px 2px rgb(27 39 65 / 0.08), 0 8px 24px -12px rgb(27 39 65 / 0.18);
+  --shadow-float: 0 2px 4px rgb(27 39 65 / 0.08), 0 16px 40px -16px rgb(27 39 65 / 0.32);
+}
+
+@media (max-width: 600px) {
+  :root {
+    --text-body: 1.0625rem;
+    --rule: 28px;
+    --margin-x: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-turn: 0ms;
+    --duration-lift: 0ms;
+  }
+}

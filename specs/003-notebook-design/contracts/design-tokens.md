@@ -19,10 +19,11 @@
 | `--cover-ink` | `#e9eef7` | text on the cover | 12.7:1 on cover |
 | `--cover-ink-soft` | `#a9b6cf` | labels on the cover | 7.3:1 on cover |
 | `--focus` | `var(--link)` | 2px focus outline, 2px offset | 7.5:1 on paper |
+| `--highlight` | `#d9e7f7` | text selection, hovered rows | ink 11:1 |
 
 ## Cardstock (subject dividers)
 
-`--divider-0` … `--divider-7`: `#e4572e` tomato, `#f2a541` saffron, `#4a9e63` leaf, `#4d8fd6` sky, `#a77bd0` violet, `#e0609a` rose, `#23a3a8` teal, `#c49a3a` ochre. They are used for edges, tabs and marks next to a subject's name, never as the only cue and never behind text. All reach 3:1 against `--cover`.
+`--divider-0` … `--divider-7`: `#e4572e` tomato, `#f2a541` saffron, `#4fa868` leaf, `#5b9be0` sky, `#b088d6` violet, `#e0609a` rose, `#23a3a8` teal, `#c49a3a` ochre. They are used for edges, tabs and marks next to a subject's name, never as the only cue and never behind text. All reach 3:1 against `--cover`.
 
 ## Type
 

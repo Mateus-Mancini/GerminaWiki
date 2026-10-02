@@ -88,6 +88,8 @@ export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = ba
   const editor = useCreateBlockNote({
     schema,
     dictionary: pt,
+    // The editable area needs a name of its own for assistive technology (axe: aria-input-field-name).
+    domAttributes: { editor: { 'aria-label': 'Conteúdo da página' } },
     uploadFile: async file => {
       setUploadError(null);
       try {

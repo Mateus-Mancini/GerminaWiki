@@ -232,3 +232,8 @@ describe('images', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
+
+test('the editable area has an accessible name', async () => {
+  await open();
+  expect(document.querySelector('[contenteditable="true"]')?.getAttribute('aria-label')).toBe('Conteúdo da página');
+});

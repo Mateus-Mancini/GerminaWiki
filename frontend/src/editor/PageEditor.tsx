@@ -83,7 +83,21 @@ export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = ba
   // editor instance (and the text in it) never has to be recreated when props change.
   const uploader = useRef(createImageUploader(pageId, api));
   uploader.current = useMemo(() => createImageUploader(pageId, api), [api, pageId]);
-  const editor = useCreateBlockNote({ schema, dictionary: pt, uploadFile: file => uploader.current(file) });
+  // BlockNote only says "upload failed"; the student also needs to know why (type, size, permission).
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const editor = useCreateBlockNote({
+    schema,
+    dictionary: pt,
+    uploadFile: async file => {
+      setUploadError(null);
+      try {
+        return await uploader.current(file);
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : 'Não foi possível enviar a imagem. Tente novamente.');
+        throw error;
+      }
+    }
+  });
   const converter = useMemo<Converter>(() => ({
     parse: markdown => editor.tryParseMarkdownToBlocks(markdown) as BlockLike[],
     serialize: blocks => editor.blocksToMarkdownLossy(blocks as never)
@@ -411,6 +425,13 @@ export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = ba
         <div role="alert" className="page-editor__alert">
           <p>{alert}</p>
           {status.kind === 'failed' && <button type="button" onClick={() => void save()}>Tentar novamente</button>}
+        </div>
+      )}
+
+      {uploadError && (
+        <div role="alert" className="page-editor__alert">
+          <p>{uploadError}</p>
+          <button type="button" onClick={() => setUploadError(null)}>Fechar</button>
         </div>
       )}
 

@@ -27,7 +27,7 @@ function fakeApi(over: Partial<EditorApi> = {}): EditorApi {
   };
 }
 
-let editor: { insertBlocks: Function; document: unknown[] } | null;
+let editor: { insertBlocks: Function; document: unknown[]; uploadFile?: (file: File) => Promise<unknown> } | null;
 let warn: ReturnType<typeof vi.spyOn>;
 let error: ReturnType<typeof vi.spyOn>;
 
@@ -217,5 +217,17 @@ describe('accessibility', () => {
     const { view } = await open();
     expect(view.container.querySelector('[aria-live="polite"]')).toBeTruthy();
     expect(await axe(view.container.querySelector('.page-editor__bar')!)).toHaveNoViolations();
+  });
+});
+
+describe('images', () => {
+  test('a refused image explains why, instead of only BlockNote\'s generic failure', async () => {
+    const { api } = await open();
+    const svg = new File(['<svg/>'], 'x.svg', { type: 'image/svg+xml' });
+    await act(async () => { await editor!.uploadFile!(svg).catch(() => {}); });
+    expect((await screen.findByRole('alert')).textContent).toContain('PNG, JPEG, WebP ou GIF de até 5 MB');
+    expect(api.requestImageUpload).not.toHaveBeenCalled();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

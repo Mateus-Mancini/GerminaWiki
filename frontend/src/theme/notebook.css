@@ -1001,12 +1001,18 @@
   align-items: center;
   gap: var(--space-1);
   min-height: 28px;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-small);
-  background: none;
-  color: var(--ink-soft);
-  font: 500 var(--text-ui-small) / 1 var(--font-sans);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--rule-color);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--link);
+  font: 600 var(--text-ui-small) / 1 var(--font-sans);
+  cursor: pointer;
+}
+
+.comment-toggle svg {
+  width: 16px;
+  height: 16px;
 }
 
 .comment-toggle:hover {
@@ -1165,18 +1171,60 @@
   font: italic 400 1rem / var(--rule) var(--font-serif);
 }
 
-/* ---------- Folder editing in the binder ---------- */
+/* ---------- Folder editing in the binder (admins): hover actions, inline names, drag and drop ---------- */
+
+.binder__labelrow,
+.tab,
+.tab__group {
+  position: relative;
+}
 
 .binder__labelrow {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding-right: var(--space-3);
+  min-height: 28px;
+  margin: 0 var(--space-2) var(--space-2);
+  border-radius: var(--radius-small);
 }
 
 .binder__labelrow .binder__label {
   flex: 1;
-  margin-bottom: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-3);
+}
+
+.row-tools {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--duration-lift) var(--ease-out);
+}
+
+.tab > .row-tools {
+  top: 18px;
+}
+
+.binder__labelrow:hover > .row-tools,
+.tab:hover > .row-tools,
+.tab__group:hover > .row-tools,
+.row-tools:focus-within {
+  opacity: 1;
+}
+
+.tab:hover > .tab__button .tab__count,
+.tab:focus-within > .tab__button .tab__count {
+  visibility: hidden;
+}
+
+@media (hover: none) {
+  .row-tools {
+    opacity: 1;
+  }
 }
 
 .binder__tool {
@@ -1187,34 +1235,102 @@
   padding: 0;
   border: 0;
   border-radius: var(--radius-small);
-  background: none;
+  background: rgb(22 32 51 / 0.85);
   color: var(--cover-ink-soft);
   cursor: pointer;
 }
 
 .binder__tool svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 
 .binder__tool:hover,
 .binder__tool:focus-visible {
-  background: rgb(255 255 255 / 0.08);
-  color: var(--cover-ink, #fff);
+  background: rgb(255 255 255 / 0.14);
+  color: var(--cover-ink);
 }
 
-.binder__labelrow + .binder__tabs,
-.binder__labelrow + .binder__empty {
-  margin-top: var(--space-2);
+.tab__group .binder__tool {
+  background: var(--paper-shade);
+  color: var(--ink-soft);
+}
+
+.tab__group .binder__tool:hover,
+.tab__group .binder__tool:focus-visible {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+.binder__inline {
+  width: 100%;
+  min-width: 0;
+  padding: 3px var(--space-2);
+  border: 1px solid var(--cover-ink-soft);
+  border-radius: var(--radius-small);
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+  font: 500 var(--text-ui) / 1.3 var(--font-sans);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.binder__inline::placeholder {
+  color: var(--cover-ink-soft);
+}
+
+.binder__inline:focus {
+  outline: 2px solid var(--cover-ink);
+  outline-offset: 1px;
+}
+
+.tab__group .binder__inline {
+  border-color: var(--ink-faint);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.tab__group .binder__inline::placeholder {
+  color: var(--ink-faint);
+}
+
+.tab__button--editing {
+  cursor: default;
+}
+
+.tab--new {
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-5);
+}
+
+[draggable="true"] {
+  cursor: grab;
+}
+
+.binder.is-dragging [data-drop-folder],
+.binder.is-dragging [data-drop-root] {
+  transition: background-color var(--duration-lift) var(--ease-out), box-shadow var(--duration-lift) var(--ease-out);
+}
+
+.is-drop-target {
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 1.5px var(--cover-ink-soft);
+}
+
+.tab__group.is-drop-target {
+  background: var(--highlight);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
 }
 
 .binder__add {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: var(--space-5) var(--space-5) 0;
-  padding: var(--space-2) 0;
-  border: 0;
+  width: calc(100% - var(--space-4));
+  margin: var(--space-5) var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed transparent;
+  border-radius: var(--radius);
   background: none;
   color: var(--cover-ink-soft);
   font: 600 var(--text-ui-small) / 1.4 var(--font-sans);
@@ -1222,35 +1338,23 @@
 }
 
 .binder__add svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 
 .binder__add:hover,
 .binder__add:focus-visible {
-  color: var(--cover-ink, #fff);
+  color: var(--cover-ink);
 }
 
-.tab__tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-2) var(--space-5) var(--space-2) calc(var(--space-5) + 12px);
+.binder.is-dragging .binder__add {
+  border-color: var(--cover-ink-soft);
 }
 
-.tab__tools button {
-  padding: 2px 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  opacity: 0.75;
-  font: 600 0.75rem / 1.4 var(--font-sans);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.tab__tools button:hover,
-.tab__tools button:focus-visible {
-  opacity: 1;
+@media (prefers-reduced-motion: reduce) {
+  .row-tools,
+  .binder.is-dragging [data-drop-folder],
+  .binder.is-dragging [data-drop-root] {
+    transition: none;
+  }
 }

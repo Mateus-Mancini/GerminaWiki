@@ -185,7 +185,7 @@ The codec is the data-integrity core: every save goes through it.
   - unreadable or invalid drafts are ignored and removed
   - storage throwing does not break editing
 - [X] T030 [P] [US3] `frontend/tests/component/DraftBanner.test.tsx`: offers the newest draft across tabs, with its time and "e mais N rascunhos"; discarding removes only that one; restoring a draft whose `baseEtag` is stale leads to the conflict screen at the next save
-- [ ] T031 [P] [US3] `frontend/tests/component/ReauthDialog.test.tsx`:
+- [X] T031 [P] [US3] `frontend/tests/component/ReauthDialog.test.tsx`:
   - a 401 on save opens sign-in inside the editor; success retries the same payload
   - cancel keeps the draft and calls `onSignedOut`
 
@@ -193,7 +193,7 @@ The codec is the data-integrity core: every save goes through it.
 
 - [X] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`; per-tab key)
 - [X] T033 [US3] `frontend/src/editor/DraftBanner.tsx` and its wiring in `PageEditor.tsx`
-- [ ] T034 [US3] `frontend/src/editor/ReauthDialog.tsx`, reusing `login()` from `backend-api.ts`, wired to the `reauth` state
+- [X] T034 [US3] `frontend/src/editor/ReauthDialog.tsx`, reusing `login()` from `backend-api.ts`, wired to the `reauth` state
 - [ ] T035 [US3] Call `clearDrafts(userId)` in the shell's `logout()` in `frontend/src/main.ts` (Clara's review)
 
 ---

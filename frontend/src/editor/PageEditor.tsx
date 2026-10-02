@@ -11,6 +11,7 @@ import { ApiRequestError, VersionConflictError, type EditablePage, type RemotePa
 import { ConflictScreen } from './ConflictScreen';
 import { DraftBanner } from './DraftBanner';
 import { createDraftWriter, draftKey, newestDraft, removeDraft, type Draft } from './drafts';
+import { ReauthDialog } from './ReauthDialog';
 import { rawMarkdownBlock } from './blocks/rawMarkdown';
 import { parseAnchor, type BlockLike } from './codec/anchors';
 import { decode, syncSnapshots, type Converter, type Decoded } from './codec/decode';
@@ -74,7 +75,7 @@ function titleProblem(title: string) {
   return null;
 }
 
-export function PageEditor({ pageId, currentUser, onClose, api = backend, handleRef, onEditorReady }: PageEditorProps) {
+export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = backend, handleRef, onEditorReady }: PageEditorProps) {
   const editor = useCreateBlockNote({ schema, dictionary: pt });
   const converter = useMemo<Converter>(() => ({
     parse: markdown => editor.tryParseMarkdownToBlocks(markdown) as BlockLike[],
@@ -97,6 +98,7 @@ export function PageEditor({ pageId, currentUser, onClose, api = backend, handle
   // `decoded` may instead come from a restored draft, so untouched draft text is also kept byte for byte.
   const baseline = useRef({ content: '', anchors: new Set<string>() });
   const restoredDraftKey = useRef<string | null>(null);
+  const lastAttempt = useRef<{ mine: Mine; savedTitle: string; expected: string } | null>(null);
   const draftWriter = useRef<ReturnType<typeof createDraftWriter> | null>(null);
   const etag = useRef('');
   const loading = useRef(true);
@@ -269,6 +271,7 @@ export function PageEditor({ pageId, currentUser, onClose, api = backend, handle
   /** Saves `mine` if the page is still at `expected`; the title is sent only when it changed. */
   const submit = useCallback(async (mine: Mine, savedTitle: string, expected: string) => {
     setStatus({ kind: 'saving' });
+    lastAttempt.current = { mine, savedTitle, expected };
     const changes = mine.title === savedTitle ? { content: mine.content } : { title: mine.title, content: mine.content };
     try {
       const result = await api.savePage(pageId, changes, expected);
@@ -312,7 +315,16 @@ export function PageEditor({ pageId, currentUser, onClose, api = backend, handle
     setStatus({ kind: 'editing' });
   }, [applyVersion, conflict, forgetDrafts, submit]);
 
+  const signInAndRetry = useCallback(async (email: string, password: string) => {
+    await api.login(email, password);
+    const attempt = lastAttempt.current;
+    if (attempt) await submit(attempt.mine, attempt.savedTitle, attempt.expected);
+  }, [api, submit]);
 
+  const cancelSignIn = useCallback(() => {
+    draftWriter.current?.flush();
+    onSignedOut();
+  }, [onSignedOut]);
 
   const requestClose = useCallback((): Promise<boolean> => {
     if (!hasUnsavedChanges()) {
@@ -398,6 +410,8 @@ export function PageEditor({ pageId, currentUser, onClose, api = backend, handle
       {offeredDraft && (
         <DraftBanner draft={offeredDraft.draft} others={offeredDraft.others} onRestore={restoreDraft} onDiscard={discardOfferedDraft} />
       )}
+
+      {status.kind === 'reauth' && <ReauthDialog onSignIn={signInAndRetry} onCancel={cancelSignIn} />}
 
       {conflict && (
         <ConflictScreen

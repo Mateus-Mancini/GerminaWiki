@@ -30,11 +30,19 @@ export async function openPageEditor(options: OpenPageEditorOptions): Promise<Ed
 
   return new Promise(resolve => {
     let resolved = false;
+    const unmount = () => {
+      mounted.unmount();
+      host.hidden = true;
+      delete document.body.dataset.editing;
+    };
     const mounted = mountPageEditor(host, {
       pageId: options.pageId,
       currentUser: options.currentUser,
       api: options.api,
-      onSignedOut: options.onSignedOut,
+      onSignedOut: () => {
+        unmount();
+        options.onSignedOut();
+      },
       handleRef: handle => {
         if (!resolved) {
           resolved = true;
@@ -42,9 +50,7 @@ export async function openPageEditor(options: OpenPageEditorOptions): Promise<Ed
         }
       },
       onClose: result => {
-        mounted.unmount();
-        host.hidden = true;
-        delete document.body.dataset.editing;
+        unmount();
         options.onClose(result);
       }
     });

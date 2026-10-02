@@ -268,3 +268,8 @@
     animation: none !important;
   }
 }
+
+/* The reading view stays mounted under the editor; hide it so only the editor scrolls. */
+body[data-editing] #root .main {
+  visibility: hidden;
+}

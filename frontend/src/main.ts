@@ -18,6 +18,7 @@ import {
   type OwnUserProfile,
   type RemotePage
 } from './services/backend-api.js';
+import { openPageEditor, preloadPageEditor, type EditorHandle } from './editor/index.js';
 
 let query = '';
 let selectedFolder = 'all';
@@ -30,6 +31,7 @@ let loginRequired = !getAuthSession();
 let authMessage = '';
 let currentUser: OwnUserProfile | null = null;
 let latestContribution: { parentPageId: string; page: RemotePage } | null = null;
+let editorHandle: EditorHandle | null = null;
 
 const esc = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const flattenFolders = (nodes: FolderNode[]): FolderNode[] => nodes.flatMap(node => [node, ...flattenFolders(node.children ?? [])]);
@@ -103,7 +105,7 @@ function renderPage(page: RemotePage) {
   const published = latestContribution?.parentPageId === page.id
     ? `<article class="published-contribution" role="status"><div class="topic-kicker">CONTEÚDO PUBLICADO</div><h3>${esc(latestContribution.page.title)}</h3><button class="published-link" data-page="${esc(latestContribution.page.id)}" type="button">Abrir página publicada →</button></article>`
     : '';
-  return `<article class="course-page"><div class="course-heading"><div class="eyebrow">${esc(rootFolder(folder?.id ?? null)?.name ?? folder?.name ?? 'WORKSPACE')} · PÁGINA DO BACKEND</div><h1>${esc(page.title)}</h1><p class="course-summary">Conteúdo carregado diretamente do workspace.</p><button id="go-home-page" class="breadcrumb-button">← Voltar aos conteúdos</button></div><div class="course-layout"><nav class="topic-nav"><div class="panel-title">NESTA PÁGINA</div>${headings.map((heading, index) => `<a href="#topic-${index}">${String(index + 1).padStart(2, '0')} · ${esc(heading[1])}</a>`).join('') || '<span class="empty-inline">Sem subtópicos cadastrados.</span>'}<a href="#contribute">＋ Contribuir com conteúdo</a></nav><div class="course-content">${sections}<section id="contribute" class="contributions-list"><div class="topic-kicker">CONTRIBUIÇÃO</div><h2>Adicionar conteúdo</h2><p>Sua contribuição será publicada como uma nova página na pasta desta matéria.</p>${published}${page.folderId ? '<button id="open-contribution" class="secondary-button">＋ Contribuir com esta matéria</button>' : '<p class="empty-inline">Esta página não está associada a uma pasta, então não é possível determinar onde salvar uma contribuição.</p>'}</section></div></div></article>`;
+  return `<article class="course-page"><div class="course-heading"><div class="eyebrow">${esc(rootFolder(folder?.id ?? null)?.name ?? folder?.name ?? 'WORKSPACE')} · PÁGINA DO BACKEND</div><h1>${esc(page.title)}</h1><p class="course-summary">Conteúdo carregado diretamente do workspace.</p><div class="page-actions"><button id="go-home-page" class="breadcrumb-button">← Voltar aos conteúdos</button><button id="edit-page" class="secondary-button" type="button">Editar página</button></div></div><div class="course-layout"><nav class="topic-nav"><div class="panel-title">NESTA PÁGINA</div>${headings.map((heading, index) => `<a href="#topic-${index}">${String(index + 1).padStart(2, '0')} · ${esc(heading[1])}</a>`).join('') || '<span class="empty-inline">Sem subtópicos cadastrados.</span>'}<a href="#contribute">＋ Contribuir com conteúdo</a></nav><div class="course-content">${sections}<section id="contribute" class="contributions-list"><div class="topic-kicker">CONTRIBUIÇÃO</div><h2>Adicionar conteúdo</h2><p>Sua contribuição será publicada como uma nova página na pasta desta matéria.</p>${published}${page.folderId ? '<button id="open-contribution" class="secondary-button">＋ Contribuir com esta matéria</button>' : '<p class="empty-inline">Esta página não está associada a uma pasta, então não é possível determinar onde salvar uma contribuição.</p>'}</section></div></div></article>`;
 }
 function renderContributionDialog() {
   return `<dialog id="contribution-dialog" class="contribution-dialog"><form id="contribution-form"><button type="button" class="close-button" data-close-dialog="contribution-dialog">×</button><h2>Contribuir com conteúdo</h2><p>O conteúdo será publicado como uma nova página na pasta desta matéria.</p><label>Título<input name="title" maxlength="255" required></label><label>Conteúdo<textarea name="body" rows="7" required></textarea></label><div id="contribution-error" class="contribution-error" role="alert" aria-live="polite"></div><div class="dialog-actions"><button type="button" class="secondary-button" data-close-dialog="contribution-dialog">Cancelar</button><button type="submit" class="primary-button">Publicar</button></div></form></dialog>`;
@@ -124,8 +126,45 @@ function bind() {
   document.querySelector<HTMLFormElement>('#login-form')?.addEventListener('submit', event => { void signIn(event); });
   document.querySelector<HTMLButtonElement>('#open-profile')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#profile-dialog')?.showModal());
   document.querySelector<HTMLFormElement>('#profile-form')?.addEventListener('submit', event => { void saveProfile(event); });
-  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', logout);
+  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', () => { void logout(); });
   document.querySelector<HTMLButtonElement>('#dismiss-notice')?.addEventListener('click', () => { notice = ''; render(); });
+  document.querySelector<HTMLButtonElement>('#edit-page')?.addEventListener('click', () => { void editPage(); });
+  // Fetch the editor in the background while a page is being read (specs/002-page-editor research R10).
+  if (selectedPage) window.requestIdleCallback?.(() => preloadPageEditor());
+}
+/** The page editor (editor-ui, specs/002-page-editor/contracts/editor-mount.md). */
+async function editPage() {
+  const page = selectedPage;
+  if (!page || !currentUser || editorHandle) return;
+  const button = document.querySelector<HTMLButtonElement>('#edit-page');
+  if (button) button.disabled = true;
+  try {
+    editorHandle = await openPageEditor({
+      pageId: page.id,
+      host: document.querySelector<HTMLElement>('#editor-root')!,
+      currentUser: { id: currentUser.id, name: currentUser.name },
+      onClose: result => {
+        editorHandle = null;
+        if (result.saved && result.page) {
+          const saved = result.page;
+          selectedPage = saved;
+          pages = pages.map(item => item.id === saved.id ? saved : item);
+          notice = 'Página salva.';
+        }
+        render();
+        document.querySelector<HTMLButtonElement>('#edit-page')?.focus();
+      },
+      onSignedOut: () => { editorHandle = null; expireSession(); render(); }
+    });
+  } catch {
+    editorHandle = null;
+    notice = 'Não foi possível abrir o editor. Tente novamente.';
+    render();
+  }
+}
+/** Asks the editor to close first (it confirms unsaved changes); false means the member stayed. */
+async function leaveEditor() {
+  return editorHandle ? editorHandle.requestClose() : true;
 }
 function expireSession() {
   clearAuthSession();
@@ -167,7 +206,8 @@ async function signIn(event: SubmitEvent) {
     if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Entrar <span>→</span>'; }
   }
 }
-function logout() {
+async function logout() {
+  if (!(await leaveEditor())) return;
   clearAuthSession();
   currentUser = null;
   folders = [];
@@ -180,6 +220,7 @@ function logout() {
   render();
 }
 async function openPage(id: string) {
+  if (!(await leaveEditor())) return;
   try { selectedPage = await getPage(id); notice = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   catch (error) {
     if (!handleUnauthorized(error)) notice = error instanceof Error ? error.message : 'Não foi possível abrir a página.';

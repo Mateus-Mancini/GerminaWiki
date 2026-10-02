@@ -41,10 +41,14 @@
   --text-ui: 0.9375rem;
   --text-ui-small: 0.8125rem;
   --measure: 66ch;
+  /* Layout widths in rem: ch would follow each container's own font. */
+  --sheet-width: 62rem;
+  --column-width: 40rem;
 
   /* Ruling and space */
   --rule: 32px;
-  --rule-offset: 0px;
+  /* Moves the ruling up so each rule runs just under the body text's baseline (measured in Chrome). */
+  --rule-offset: -8px;
   --margin-x: 88px;
   --space-1: 4px;
   --space-2: 8px;
@@ -71,6 +75,7 @@
   :root {
     --text-body: 1.0625rem;
     --rule: 28px;
+    --rule-offset: -7px;
     --margin-x: 40px;
   }
 }

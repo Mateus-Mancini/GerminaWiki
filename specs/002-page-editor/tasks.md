@@ -72,7 +72,7 @@ The codec is the data-integrity core: every save goes through it.
   - `getPublicProfile`, `searchPages`, `listPageCommentAnchors` (follows pages of up to 100)
   
   Clara owns this file, so it needs her review. (T008)
-- [ ] T014 [P] `frontend/src/editor/report.ts`: `report(event, { pageId, status, version })`, emitting `editor.save_failed`, `editor.conflict`, `editor.auth_expired` and `editor.forbidden`, and never content or tokens (R14)
+- [X] T014 [P] `frontend/src/editor/report.ts`: `report(event, { pageId, status, version })`, emitting `editor.save_failed`, `editor.conflict`, `editor.auth_expired` and `editor.forbidden`, and never content or tokens (R14)
 
 **Checkpoint**: codec and client tests green; the codec meets SC-007 on all fixtures
 

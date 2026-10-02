@@ -153,7 +153,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T024 [P] [US4] `frontend/tests/unit/codec/stability.test.ts`:
+- [X] T024 [P] [US4] `frontend/tests/unit/codec/stability.test.ts`:
   - 20 consecutive random edit-and-encode cycles on a page with anchored blocks
   - every surviving block keeps its anchor and no anchor is duplicated (SC-003)
 - [ ] T025 [P] [US4] `frontend/tests/component/commentWarning.test.tsx`:

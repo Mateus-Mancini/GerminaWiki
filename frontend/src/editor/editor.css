@@ -1,207 +1,532 @@
-/* Page editor (editor-ui). Colours and type follow the shell (frontend/src/styles.css). */
+/*
+ * The page editor on the notebook sheet (specs/003-notebook-design US3). Editing keeps the reading view's
+ * paper, ruling, margin, headword and body face; only the controls change. Values come from the theme's
+ * tokens (frontend/src/theme/tokens.css); BlockNote is themed through its own --bn-* variables.
+ */
 
-:root {
-  --editor-ink: #203a34;
-  --editor-ink-soft: #5f7469;
-  --editor-line: #e3e8df;
-  --editor-paper: #fffffd;
-  --editor-canvas: #f6f7f2;
-  --editor-accent: #1d5543;
-  --editor-accent-hover: #267355;
-  --editor-focus: #4e9877;
-  --editor-danger: #a63d36;
-  --editor-danger-soft: #fbefed;
-  --editor-sidebar: 258px; /* the shell's sidebar column */
-}
-
-/* While editing, the editor takes the main column; the shell keeps its sidebar. */
+/* While editing, the editor takes the sheet's column; the binder stays. */
 #editor-root:not([hidden]) {
   position: fixed;
-  inset: 0 0 0 var(--editor-sidebar);
-  z-index: 3;
+  inset: 0 0 0 var(--binder-width);
+  z-index: 4;
   overflow-y: auto;
-  background: var(--editor-canvas);
+  background: var(--paper);
+  scrollbar-color: color-mix(in srgb, var(--ink-faint) 55%, transparent) transparent;
+}
+
+@media (max-width: 899px) {
+  #editor-root:not([hidden]) {
+    inset: 0;
+    z-index: 6;
+  }
 }
 
 .page-editor {
   min-height: 100%;
-  color: var(--editor-ink);
+  color: var(--ink);
+  font: 400 var(--text-ui) / 1.5 var(--font-sans);
 }
 
+/* The bar covers the sheet's first two rules, so the headword lands where it is when reading. */
 .page-editor__bar {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: center;
-  gap: 16px;
-  height: 64px;
-  padding: 0 5.5%;
-  border-bottom: 1px solid var(--editor-line);
-  background: #fafbf8;
+  gap: var(--space-4);
+  height: calc(var(--rule) * 2);
+  padding: 0 var(--space-6) 0 calc(var(--margin-x) + 40px);
+  border-bottom: 1px solid var(--rule-color);
+  background: var(--paper);
 }
 
 .page-editor__mode {
-  font: 700 10px/1 'DM Sans', sans-serif;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--editor-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
+  font: 650 var(--text-ui-small) / 1 var(--font-sans);
+}
+
+/* A wet-ink dot: this sheet is being written. */
+.page-editor__mode::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--margin-color);
 }
 
 .page-editor__status {
   flex: 1;
-  margin: 0;
-  font-size: 12px;
-  color: var(--editor-ink-soft);
+  color: var(--ink-soft);
+  font-size: var(--text-ui-small);
 }
 
 .page-editor__actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-2);
 }
 
+/* Buttons: the theme's button family (base.css .button), applied to the editor's plain buttons. */
 .page-editor button {
-  border: 1px solid var(--editor-line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--editor-ink);
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 var(--text-ui-small) / 1 var(--font-sans);
+  letter-spacing: 0.01em;
+  transition: background-color var(--duration-lift) var(--ease-out), border-color var(--duration-lift) var(--ease-out);
 }
 
 .page-editor button:hover:not(:disabled) {
-  border-color: #b9cbbd;
+  border-color: color-mix(in srgb, var(--ink) 50%, transparent);
+  background: var(--highlight);
 }
 
-.page-editor button:focus-visible,
-.page-editor__title:focus-visible,
-.raw-markdown__source:focus-visible {
-  outline: 2px solid var(--editor-focus);
-  outline-offset: 2px;
+.page-editor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
-.page-editor .page-editor__save {
-  border-color: var(--editor-accent);
-  background: var(--editor-accent);
-  color: #fff;
-  min-width: 132px;
+.page-editor .page-editor__save,
+.page-editor .conflict__primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
 }
 
-.page-editor .page-editor__save:hover:not(:disabled) {
-  background: var(--editor-accent-hover);
+.page-editor .page-editor__save:hover:not(:disabled),
+.page-editor .conflict__primary:hover:not(:disabled) {
+  border-color: var(--link);
+  background: var(--link);
 }
 
 .page-editor .page-editor__save:disabled {
-  border-color: var(--editor-line);
-  background: #eef1eb;
-  color: #7b8b82;
-  cursor: default;
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+  background: var(--paper);
+  color: var(--ink-soft);
 }
 
-.page-editor .page-editor__danger {
-  border-color: var(--editor-danger);
-  background: var(--editor-danger);
-  color: #fff;
+.page-editor .page-editor__danger,
+.page-editor .conflict__danger {
+  border-color: color-mix(in srgb, var(--link-missing) 45%, transparent);
+  color: var(--link-missing);
+}
+
+.page-editor .page-editor__danger:hover:not(:disabled),
+.page-editor .conflict__danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--link-missing) 10%, var(--paper));
+}
+
+.page-editor :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- The sheet ---------- */
+
+.page-editor__sheet {
+  position: relative;
+  min-height: calc(100vh - var(--rule) * 2);
+  padding: var(--rule) var(--space-6) calc(var(--rule) * 6) calc(var(--margin-x) + 40px);
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 calc(var(--rule) - 1px), var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+  background-position: 0 var(--rule-offset);
+}
+
+/* The margin line draws down the sheet as editing starts. */
+.page-editor__sheet::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--margin-x);
+  width: 1.5px;
+  background: var(--margin-color);
+  transform-origin: top;
+  animation: margin-draw calc(var(--duration-turn) * 2) var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes margin-draw {
+  from { transform: scaleY(0); }
+}
+
+.page-editor__title {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  height: calc(var(--rule) * 2);
+  margin: 0 0 var(--rule);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 var(--text-headword) / calc(var(--rule) * 2) var(--font-serif);
+  letter-spacing: -0.015em;
+  text-overflow: ellipsis;
+}
+
+.page-editor__title:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: var(--radius-small);
+}
+
+.page-editor__title[aria-invalid="true"] {
+  text-decoration: underline wavy var(--link-missing) 1.5px;
+  text-underline-offset: 8px;
+}
+
+.page-editor__field-error {
+  margin: calc(var(--rule) * -1) 0 0;
+  color: var(--link-missing);
+  font: 500 var(--text-ui-small) / var(--rule) var(--font-sans);
+}
+
+/* ---------- BlockNote on the sheet ---------- */
+
+.page-editor .bn-container[data-color-scheme] {
+  --bn-font-family: var(--font-sans);
+  --bn-border-radius-small: var(--radius-small);
+  --bn-border-radius-medium: var(--radius);
+  --bn-border-radius-large: var(--radius);
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-menu-background: var(--paper);
+  --bn-colors-tooltip-text: var(--paper);
+  --bn-colors-tooltip-background: var(--ink);
+  --bn-colors-hovered-text: var(--ink);
+  --bn-colors-hovered-background: var(--highlight);
+  --bn-colors-selected-text: var(--paper);
+  --bn-colors-selected-background: var(--ink);
+  --bn-colors-disabled-text: var(--ink-faint);
+  --bn-colors-disabled-background: var(--paper-shade);
+  --bn-colors-shadow: rgb(27 39 65 / 0.22);
+  --bn-colors-border: var(--rule-color);
+  --bn-colors-side-menu: var(--ink-faint);
+  --bn-colors-highlights-blue-text: var(--link);
+  --bn-colors-highlights-red-text: var(--link-missing);
+  max-width: var(--column-width);
+}
+
+.page-editor .bn-editor {
+  padding: 0;
+  color: var(--ink);
+  font: 400 var(--text-body) / var(--rule) var(--font-serif);
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+
+.page-editor .bn-block-content {
+  padding-block: 0;
+}
+
+.page-editor .bn-inline-content {
+  line-height: var(--rule);
+}
+
+/* Blocks are a rule apart, like paragraphs when reading; list items follow each other directly. */
+.page-editor .bn-editor > .bn-block-group > .bn-block-outer + .bn-block-outer {
+  margin-top: var(--rule);
+}
+
+.page-editor .bn-editor > .bn-block-group > .bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type$="ListItem"]) + .bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type$="ListItem"]) {
+  margin-top: 0;
+}
+
+.page-editor [data-content-type="heading"] .bn-inline-content {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+.page-editor [data-content-type="heading"]:not([data-level]) .bn-inline-content {
+  font-size: 2rem;
+  line-height: calc(var(--rule) * 2);
+  letter-spacing: -0.01em;
+}
+
+.page-editor [data-content-type="heading"][data-level="2"] .bn-inline-content {
+  font-size: var(--text-h2);
+  letter-spacing: -0.01em;
+}
+
+.page-editor [data-content-type="heading"][data-level="3"] .bn-inline-content {
+  font-size: var(--text-h3);
+}
+
+.page-editor .bn-inline-content a {
+  color: var(--link);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+}
+
+.page-editor .bn-inline-content code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-small);
+  background: var(--paper-shade);
+  font: 400 0.84em / 1 var(--font-mono);
+}
+
+.page-editor [data-content-type="quote"] blockquote,
+.page-editor [data-content-type="quote"] > .bn-inline-content {
+  position: relative;
+  margin: 0;
+  padding-left: 2em;
+  border-left: 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.page-editor .bn-block-content[data-content-type="codeBlock"] {
+  border: 1px solid var(--rule-color);
+  border-radius: var(--radius);
+  background: var(--paper-shade);
+  color: var(--ink);
+}
+
+.page-editor [data-content-type="codeBlock"] pre,
+.page-editor [data-content-type="codeBlock"] code {
+  background: transparent;
+  color: var(--ink);
+  font: 400 0.82em / 1.6 var(--font-mono);
+}
+
+.page-editor .bn-side-menu .bn-ak-button {
+  color: var(--ink-faint);
+}
+
+/* The caret marks focus in the text; a box around the whole sheet would only get in the way. */
+.page-editor .bn-editor:focus-visible {
+  outline: none;
+}
+
+/*
+ * Ariakit hard-codes its colours (#007acc, #fff, #dae2e7), so its menus are restated here on the
+ * notebook's tokens. This file loads after ariakit's stylesheet, so the same selectors win.
+ * Floating menus are paper slips lifted off the sheet.
+ */
+.bn-ak-menu,
+.bn-ak-popover,
+.bn-ak-toolbar,
+.bn-ak-hovercard,
+.bn-ak-wrapper,
+.bn-ariakit .bn-combobox .bn-ak-input-wrapper {
+  border: 0;
+  border-radius: var(--radius);
+  background-color: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  font-family: var(--font-sans);
+}
+
+.bn-ak-menu-item,
+.bn-ak-select-item {
+  border-radius: var(--radius-small);
+  color: var(--ink);
+}
+
+.bn-ak-menu-item[data-active-item],
+.bn-ak-menu-item[aria-selected=true],
+.bn-ak-menu-item:hover,
+.bn-ak-select-item[data-active-item],
+.bn-ak-tab[aria-selected=true] {
+  color: var(--paper);
+  background-color: var(--ink);
+}
+
+.bn-ak-menu-item:active,
+.bn-ak-menu-item[data-active],
+.bn-ak-tab:hover[aria-selected=true] {
+  background-color: var(--link);
+}
+
+.bn-ak-suggestion-menu-item-section[data-position=right] {
+  --border: color-mix(in srgb, currentColor 30%, transparent);
+  --highlight: transparent;
+  --shadow: transparent;
+  font-family: var(--font-sans);
+}
+
+.bn-ak-group-label,
+.bn-suggestion-menu-label {
+  color: var(--ink-soft);
+}
+
+.bn-ak-button {
+  --border: color-mix(in srgb, var(--ink) 18%, transparent);
+  --highlight: transparent;
+  --shadow: transparent;
+  color: var(--ink);
+}
+
+.bn-ak-button:hover,
+.bn-ak-button[aria-pressed=true],
+.bn-ak-button[data-selected] {
+  background-color: var(--highlight);
+}
+
+.bn-ak-primary {
+  --border: var(--ink);
+  color: var(--paper);
+  background-color: var(--ink);
+}
+
+.bn-ak-primary:hover {
+  background-color: var(--link);
+}
+
+.bn-ak-tab,
+.bn-ariakit .bn-file-input {
+  color: var(--ink);
+}
+
+.bn-ak-input {
+  color: var(--ink);
+  background-color: var(--paper-shade);
+}
+
+.bn-ak-input:hover {
+  background-color: var(--highlight);
+}
+
+[data-focus-visible],
+.bn-ak-input:focus-visible,
+.bn-ak-input[data-focus-visible],
+.bn-ak-popover:focus-visible,
+.bn-ak-popover[data-focus-visible],
+.bn-ak-hovercard:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.bn-ak-separator {
+  border-color: var(--rule-color);
+}
+
+.bn-ak-tooltip {
+  border-color: transparent;
+  color: var(--paper);
+  background-color: var(--ink);
+}
+
+.bn-ak-link,
+.bn-ak-anchor {
+  color: var(--link);
+}
+
+.bn-ak-error {
+  color: var(--link-missing);
+  background-color: color-mix(in srgb, var(--link-missing) 8%, var(--paper));
+  border-color: color-mix(in srgb, var(--link-missing) 30%, transparent);
+}
+
+.page-editor [data-file-block] .bn-add-file-button {
+  color: var(--ink-soft);
+  background-color: var(--paper-shade);
+  border: 1px dashed var(--ink-faint);
+  font-family: var(--font-sans);
+}
+
+.page-editor .bn-editor [data-content-type=table] th,
+.page-editor .bn-editor [data-content-type=table] td {
+  border-color: var(--rule-color);
+}
+
+.page-editor [data-content-type=divider] hr {
+  border-top-color: var(--ink-faint);
+}
+
+.page-editor [data-content-type="quote"] blockquote::before {
+  content: "\201C";
+  position: absolute;
+  top: 0;
+  left: 0.15em;
+  color: var(--margin-color);
+  font: normal 400 2.6em / 1 var(--font-serif);
+}
+
+/* ---------- Raw Markdown block ---------- */
+
+.raw-markdown {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--ink-faint);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.raw-markdown__label {
+  color: var(--ink-soft);
+  font: 650 0.6875rem / 1.4 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.raw-markdown__source {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 0.875rem / 1.6 var(--font-mono);
+  resize: vertical;
+}
+
+.raw-markdown__source:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Notes above the sheet: alerts and the draft offer ---------- */
+
+.page-editor__alert,
+.draft-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  margin: var(--space-4) var(--space-6) 0 calc(var(--margin-x) + 40px);
+  max-width: var(--column-width);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-float);
+  font-size: var(--text-ui);
+}
+
+.page-editor__alert p,
+.draft-banner p {
+  flex: 1 1 18rem;
+  margin: 0;
 }
 
 .page-editor__alert {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 780px;
-  margin: 20px auto 0;
-  padding: 12px 16px;
-  border-left: 3px solid var(--editor-danger);
-  border-radius: 6px;
-  background: var(--editor-danger-soft);
-  color: #6d2620;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.page-editor__alert p {
-  margin: 0;
+  color: var(--link-missing);
 }
 
 .page-editor--failed {
   display: grid;
   place-content: center;
-  gap: 16px;
-  padding: 48px 20px;
+  gap: var(--space-4);
+  padding: var(--space-6);
 }
 
-/* The sheet mirrors the reading width, so editing looks like the page being read. */
-.page-editor__sheet {
-  max-width: 780px;
-  margin: 32px auto 80px;
-  padding: 40px 48px 56px;
-  border: 1px solid var(--editor-line);
-  border-radius: 12px;
-  background: var(--editor-paper);
+.page-editor--failed .page-editor__alert {
+  margin: 0;
 }
 
-.page-editor__title {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  padding: 0 0 10px;
-  margin-bottom: 18px;
-  background: transparent;
-  color: #163e36;
-  font: 800 clamp(28px, 3.4vw, 40px)/1.12 Manrope, sans-serif;
-  letter-spacing: -0.04em;
-}
-
-.page-editor__title[aria-invalid='true'] {
-  border-bottom-color: var(--editor-danger);
-}
-
-.page-editor__field-error {
-  margin: -10px 0 16px;
-  color: var(--editor-danger);
-  font-size: 12px;
-}
-
-/* BlockNote: align its text with the title, use the shell's fonts. */
-.page-editor .bn-container {
-  --bn-font-family: 'DM Sans', sans-serif;
-}
-
-.page-editor .bn-editor {
-  padding-inline: 0;
-  font-size: 15px;
-  line-height: 1.75;
-}
-
-.raw-markdown {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px dashed #c9d5c9;
-  border-radius: 8px;
-  background: #f7f9f5;
-}
-
-.raw-markdown__label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--editor-ink-soft);
-}
-
-.raw-markdown__source {
-  width: 100%;
-  resize: vertical;
-  border: 0;
-  background: transparent;
-  color: var(--editor-ink);
-  font: 13px/1.6 ui-monospace, 'SFMono-Regular', Menlo, monospace;
-}
+/* ---------- Dialogs ---------- */
 
 .page-editor__backdrop {
   position: fixed;
@@ -209,189 +534,197 @@
   z-index: 10;
   display: grid;
   place-items: center;
-  padding: 20px;
-  background: #132e27a8;
+  padding: var(--space-4);
+  background: rgb(27 39 65 / 0.42);
+  animation: fade-in var(--duration-fade) linear;
 }
 
 .page-editor__dialog {
-  width: min(420px, 100%);
-  padding: 28px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 24px 80px #0f29233d;
+  display: grid;
+  gap: var(--space-4);
+  width: min(480px, 100%);
+  padding: var(--space-6);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-float);
 }
 
 .page-editor__dialog h2 {
-  margin: 0 0 8px;
-  color: #173e35;
-  font: 800 22px Manrope, sans-serif;
-  letter-spacing: -0.03em;
+  margin: 0;
+  font: 400 1.6rem / 1.2 var(--font-serif);
 }
 
 .page-editor__dialog p {
-  margin: 0 0 22px;
-  color: var(--editor-ink-soft);
-  font-size: 13px;
-  line-height: 1.7;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
 }
 
 .page-editor__dialog .page-editor__actions {
   justify-content: flex-end;
 }
 
-@media (max-width: 760px) {
-  #editor-root:not([hidden]) {
-    inset: 0;
-  }
-
-  .page-editor__bar {
-    padding: 0 16px;
-  }
-
-  .page-editor__mode {
-    display: none;
-  }
-
-  .page-editor__sheet {
-    margin: 0;
-    padding: 24px 18px 48px;
-    border: 0;
-    border-radius: 0;
-  }
+.reauth {
+  display: grid;
+  gap: var(--space-2);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .page-editor *,
-  .page-editor *::before,
-  .page-editor *::after {
-    transition: none !important;
-    animation: none !important;
-  }
+.reauth label {
+  color: var(--ink-soft);
+  font: 600 var(--text-ui-small) / 1.4 var(--font-sans);
 }
 
-/* The reading view stays mounted under the editor; hide it so only the editor scrolls. */
-body[data-editing] #root .main {
-  visibility: hidden;
+.reauth input {
+  min-height: 40px;
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 40%, transparent);
+  background: transparent;
+  font: 400 1rem / 1.5 var(--font-sans);
 }
 
-/* Conflict screen (US2). */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.reauth input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--link);
+  box-shadow: 0 2px 0 var(--link);
 }
+
+/* ---------- Conflict screen ---------- */
 
 .conflict {
-  max-width: 1100px;
-  margin: 24px auto 64px;
-  padding: 0 5.5%;
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6) var(--space-6) calc(var(--margin-x) + 40px);
+}
+
+.conflict__header {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--column-width);
 }
 
 .conflict__header h2 {
-  margin: 0 0 6px;
-  color: #163e36;
-  font: 800 24px/1.2 Manrope, sans-serif;
-  letter-spacing: -0.03em;
+  margin: 0;
+  font: 400 2rem / 1.2 var(--font-serif);
+  letter-spacing: -0.01em;
 }
 
 .conflict__header p {
-  margin: 0 0 16px;
-  color: var(--editor-ink-soft);
-  font-size: 13px;
-  line-height: 1.6;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
 .conflict__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-
-.page-editor .conflict__primary {
-  border-color: var(--editor-accent);
-  background: var(--editor-accent);
-  color: #fff;
-}
-
-.page-editor .conflict__danger {
-  border-color: #e4c4c0;
-  color: var(--editor-danger);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .conflict__versions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-5);
 }
 
 .conflict__version {
   min-width: 0;
-  border: 1px solid var(--editor-line);
-  border-radius: 10px;
-  background: var(--editor-paper);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
 }
 
 .conflict__version h3 {
-  margin: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--editor-line);
-  font: 700 11px 'DM Sans', sans-serif;
-  letter-spacing: 0.12em;
+  margin: 0 0 var(--space-3);
+  font: 650 var(--text-ui-small) / 1.4 var(--font-sans);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--editor-ink-soft);
+  color: var(--ink-soft);
 }
 
 .conflict__lines {
-  padding: 8px 0;
-  font: 13px/1.65 ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  overflow-wrap: anywhere;
+  overflow-x: auto;
+  font: 400 0.8125rem / 1.7 var(--font-mono);
+  white-space: pre-wrap;
 }
 
-.conflict__lines > * {
+.conflict__lines ins,
+.conflict__lines del {
   display: block;
-  padding: 0 14px;
   text-decoration: none;
 }
 
 .conflict__lines ins {
-  background: #e3f2e6;
-  box-shadow: inset 3px 0 #4e9877;
+  background: color-mix(in srgb, var(--divider-2) 18%, var(--paper));
 }
 
 .conflict__lines del {
-  background: #fbe9e7;
-  box-shadow: inset 3px 0 var(--editor-danger);
+  background: color-mix(in srgb, var(--link-missing) 10%, var(--paper));
+  color: var(--ink-soft);
 }
 
+.conflict__lines del .conflict__text {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--link-missing) 60%, transparent);
+}
+
+/* The member's earlier text, kept beside the sheet after "continue editing". */
 .page-editor__aside {
-  max-width: 780px;
-  margin: 16px auto 0;
-  padding: 12px 16px;
-  border: 1px solid var(--editor-line);
-  border-radius: 10px;
-  background: #fbfcf9;
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  width: min(380px, calc(100vw - 32px));
+  max-height: 60vh;
+  overflow: auto;
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-float);
 }
 
 .page-editor__aside h2 {
-  margin: 0 0 8px;
-  font: 700 12px 'DM Sans', sans-serif;
-  color: var(--editor-ink);
+  margin: 0;
+  font: 400 1.25rem / 1.3 var(--font-serif);
 }
 
 .page-editor__aside pre {
-  max-height: 240px;
-  overflow: auto;
-  margin: 0 0 8px;
+  margin: 0;
+  color: var(--ink-soft);
+  font: 400 0.8125rem / 1.6 var(--font-mono);
   white-space: pre-wrap;
-  font: 12px/1.6 ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-@media (max-width: 900px) {
-  .conflict__versions {
-    grid-template-columns: 1fr;
+.page-editor__aside button {
+  justify-self: start;
+}
+
+@media (max-width: 600px) {
+  .page-editor__bar {
+    padding: 0 var(--space-3) 0 var(--space-4);
+  }
+
+  .page-editor__sheet,
+  .conflict {
+    padding-left: calc(var(--margin-x) + var(--space-4));
+    padding-right: var(--space-4);
+  }
+
+  .page-editor__alert,
+  .draft-banner {
+    margin-left: var(--space-4);
+    margin-right: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-editor__sheet::after {
+    animation: none;
   }
 }

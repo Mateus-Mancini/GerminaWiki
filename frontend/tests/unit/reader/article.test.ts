@@ -96,5 +96,12 @@ describe('renderArticle', () => {
     const link = dom(renderArticle(`<!--b:${A}-->\nVeja [o site][s].\n\n<!--b:${B}-->\n[s]: https://example.com\n`).html).querySelector('a');
     expect(link?.getAttribute('href')).toBe('https://example.com');
   });
-});
 
+  test('leaves out a first heading that repeats the page title, and only that', () => {
+    const A = '3f2a9c1e-0000-4000-8000-00000000000a';
+    const { html, headings } = renderArticle(`<!--b:${A}-->\n# Física moderna\n\nTexto.\n\n# Física moderna\n`, [], { omitTitle: 'física Moderna' });
+    expect(headings).toEqual([{ id: 'secao-fisica-moderna', text: 'Física moderna', level: 1 }]);
+    expect(dom(html).querySelectorAll('h1')).toHaveLength(1);
+    expect(renderArticle('Intro.\n\n# Física moderna\n', [], { omitTitle: 'Física moderna' }).headings).toHaveLength(1);
+  });
+});

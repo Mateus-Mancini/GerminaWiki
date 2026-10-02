@@ -13,6 +13,11 @@ export type ArticleOptions = {
    * `<div class="article-block" data-block="<uuid>">`.
    */
   wrapBlock?: (blockId: string, html: string) => string;
+  /**
+   * The page's title. Many pages open with a `# Title` line that repeats it; the sheet already shows the
+   * title as its headword, so that first heading is left out (and out of the table of contents).
+   */
+  omitTitle?: string;
 };
 
 const ANCHOR = /^<!--b:([0-9a-f-]{36})-->\s*$/i;
@@ -92,8 +97,14 @@ export function renderArticle(content: string, pages: readonly LinkablePage[] = 
   // in groups, one per anchor (the text before the first anchor has none).
   const tokens = marked.lexer(content);
   const groups: { blockId: string | null; tokens: Token[] }[] = [{ blockId: null, tokens: [] }];
+  const echo = options.omitTitle?.trim().toLocaleLowerCase('pt-BR');
+  let seenContent = false;
   for (const token of tokens) {
     const anchor = token.type === 'html' ? ANCHOR.exec(token.raw.trim()) : null;
+    if (!anchor && token.type !== 'space' && !seenContent) {
+      seenContent = true;
+      if (echo && token.type === 'heading' && token.depth === 1 && token.text.trim().toLocaleLowerCase('pt-BR') === echo) continue;
+    }
     if (anchor) groups.push({ blockId: anchor[1], tokens: [] });
     else groups.at(-1)!.tokens.push(token);
   }

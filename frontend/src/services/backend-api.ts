@@ -5,8 +5,23 @@ export type RemotePage = {
   content: string;
   version: number;
   folderId: string | null;
+  createdBy?: string;
+  updatedBy?: string | null;
   createdAt?: string;
   updatedAt?: string;
+};
+
+/** A page with the version it was read at (`ETag`), which every save must send back as `If-Match`. */
+export type EditablePage = {
+  page: RemotePage;
+  etag: string;
+};
+
+export type PublicUserProfile = {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  bio: string | null;
 };
 
 export type FolderNode = {
@@ -43,6 +58,14 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** The page changed since the version being saved (HTTP 412 from the pages API; 409 in the constitution). */
+export class VersionConflictError extends ApiRequestError {
+  constructor(message: string, status: number, readonly currentVersion: number | null) {
+    super(message, status);
+    this.name = 'VersionConflictError';
+  }
+}
+
 const SESSION_KEY = 'germinawiki.auth-session';
 const env = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string; DEV?: boolean } }).env;
 const baseUrl = env?.VITE_API_BASE_URL?.replace(/\/$/, '') || (env?.DEV ? 'http://localhost:8080' : '');
@@ -76,7 +99,7 @@ export function clearAuthSession() {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
+async function send(path: string, init: RequestInit = {}, authenticated = true): Promise<Response> {
   if (!baseUrl) {
     throw new Error('URL do backend não configurada. Defina VITE_API_BASE_URL no ambiente de build.');
   }
@@ -90,16 +113,24 @@ async function request<T>(path: string, init: RequestInit = {}, authenticated = 
     headers.set('authorization', `Bearer ${session.accessToken}`);
   }
 
-  const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  return fetch(`${baseUrl}${path}`, { ...init, headers });
+}
+
+async function errorPayload(response: Response) {
+  const payload = await response.json().catch(() => null);
+  const message =
+    typeof payload?.detail === 'string' ? payload.detail :
+    typeof payload?.message === 'string' ? payload.message :
+    typeof payload?.error === 'string' ? payload.error :
+    typeof payload?.error?.message === 'string' ? payload.error.message :
+    `Falha na API (${response.status}).`;
+  return { payload, message };
+}
+
+async function request<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
+  const response = await send(path, init, authenticated);
   if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      typeof payload?.detail === 'string' ? payload.detail :
-      typeof payload?.message === 'string' ? payload.message :
-      typeof payload?.error === 'string' ? payload.error :
-      typeof payload?.error?.message === 'string' ? payload.error.message :
-      `Falha na API (${response.status}).`;
-    throw new ApiRequestError(message, response.status);
+    throw new ApiRequestError((await errorPayload(response)).message, response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -165,4 +196,101 @@ export function createContributionPage(folderId: string, title: string, content:
     method: 'POST',
     body: JSON.stringify({ title, slug: slugify(`${title}-${crypto.randomUUID()}`), content, folderId })
   });
+}
+
+async function editablePage(response: Response): Promise<EditablePage> {
+  const etag = response.headers.get('etag');
+  if (!etag) throw new Error('O servidor não informou a versão da página; a edição foi bloqueada para evitar sobrescritas.');
+  return { page: await response.json() as RemotePage, etag };
+}
+
+/** Loads a page for editing (editor-ui, specs/002-page-editor/contracts/pages-api.md). */
+export async function getPageForEdit(id: string): Promise<EditablePage> {
+  const response = await send(`/api/pages/${encodeURIComponent(id)}`);
+  if (!response.ok) throw new ApiRequestError((await errorPayload(response)).message, response.status);
+  return editablePage(response);
+}
+
+/** Saves only if the page is still at `etag`; otherwise throws VersionConflictError. */
+export async function savePage(id: string, changes: { title?: string; content: string }, etag: string): Promise<EditablePage> {
+  const response = await send(`/api/pages/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'if-match': etag },
+    body: JSON.stringify(changes)
+  });
+  if (response.ok) return editablePage(response);
+  const { payload, message } = await errorPayload(response);
+  if (response.status === 409 || response.status === 412) {
+    const current = Number(payload?.currentVersion);
+    throw new VersionConflictError(
+      'Esta página foi alterada por outra pessoa enquanto você editava.',
+      response.status,
+      Number.isInteger(current) ? current : null
+    );
+  }
+  throw new ApiRequestError(message, response.status);
+}
+
+export function getPublicProfile(userId: string) {
+  return request<PublicUserProfile>(`/api/users/${encodeURIComponent(userId)}`);
+}
+
+export function searchPages(query: string) {
+  return request<RemotePage[]>(`/api/search?q=${encodeURIComponent(query)}`);
+}
+
+type CommentPage = { items: { anchor: { blockId: string } | null }[]; totalPages: number };
+
+/** How many comments each block anchor of a page has (all pages of comments, 100 at a time). */
+export async function listPageCommentAnchors(pageId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  for (let page = 0, totalPages = 1; page < totalPages; page++) {
+    const result = await request<CommentPage>(
+      `/api/comments?pageId=${encodeURIComponent(pageId)}&page=${page}&size=100`
+    );
+    for (const comment of result.items) {
+      const blockId = comment.anchor?.blockId;
+      if (blockId) counts.set(blockId, (counts.get(blockId) ?? 0) + 1);
+    }
+    totalPages = result.totalPages;
+  }
+  return counts;
+}
+
+/** Permission to PUT one image straight to storage (ms-germina-wiki spec 005). */
+export type UploadPermission = {
+  uploadKey: string;
+  uploadUrl: string;
+  method: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+};
+
+export type PageImage = {
+  id: string;
+  pageId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  uploadedBy: string;
+  createdAt: string;
+  /** API-relative address, e.g. /api/images/{id}. */
+  url: string;
+};
+
+export function requestImageUpload(pageId: string, file: { contentType: string; size: number }) {
+  return request<UploadPermission>(`/api/pages/${encodeURIComponent(pageId)}/images/uploads`, {
+    method: 'POST', body: JSON.stringify(file)
+  });
+}
+
+export function confirmImageUpload(pageId: string, upload: { uploadKey: string; fileName: string }) {
+  return request<PageImage>(`/api/pages/${encodeURIComponent(pageId)}/images`, {
+    method: 'POST', body: JSON.stringify(upload)
+  });
+}
+
+/** Absolute API address of a path; stored image addresses must work from any page, so they include it. */
+export function apiUrl(path: string) {
+  return `${baseUrl}${path}`;
 }

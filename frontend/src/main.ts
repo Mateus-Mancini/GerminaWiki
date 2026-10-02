@@ -18,6 +18,9 @@ import {
   type OwnUserProfile,
   type RemotePage
 } from './services/backend-api.js';
+import { openPageEditor, preloadPageEditor, type EditorHandle } from './editor/index.js';
+import { clearDrafts } from './editor/drafts.js';
+import { renderArticle } from './reader/article.js';
 
 let query = '';
 let selectedFolder = 'all';
@@ -30,6 +33,7 @@ let loginRequired = !getAuthSession();
 let authMessage = '';
 let currentUser: OwnUserProfile | null = null;
 let latestContribution: { parentPageId: string; page: RemotePage } | null = null;
+let editorHandle: EditorHandle | null = null;
 
 const esc = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const flattenFolders = (nodes: FolderNode[]): FolderNode[] => nodes.flatMap(node => [node, ...flattenFolders(node.children ?? [])]);
@@ -78,32 +82,14 @@ function renderCatalog(items: RemotePage[], folderOptions: string) {
   if (loading) return '<section class="content"><p class="empty">Carregando conteúdo do backend…</p></section>';
   return `<section class="content"><div class="welcome"><div><div class="eyebrow">BIBLIOTECA DE CONTEÚDOS</div><h1>Conhecimento<br/><em>do workspace.</em></h1><p>Matérias, páginas e materiais carregados do backend.</p></div><div class="welcome-art"><span>G</span><i>✳</i></div></div><div class="section-heading"><div><div class="eyebrow">PÁGINAS DO BACKEND</div><h2>Conteúdos <span>${items.length}</span></h2></div><select id="folder-select"><option value="all" ${selectedFolder === 'all' ? 'selected' : ''}>Todas as pastas</option>${folderOptions}</select></div><div class="subject-grid">${items.map((page, index) => `<button class="subject-card" data-page="${esc(page.id)}"><span class="subject-icon">${['✧','◉','⌘','∿','✳','◎'][index % 6]}</span><span class="subject-area">${esc(rootFolder(page.folderId)?.name ?? 'Sem pasta')}</span><strong>${esc(page.title)}</strong><span class="open-label">Abrir conteúdo →</span></button>`).join('') || '<div class="empty">Nenhuma página foi retornada pelo backend.</div>'}</div></section>`;
 }
-function markdown(content: string) {
-  return content.split(/\r?\n/).map(line => {
-    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
-    if (heading) return `<h${heading[1].length}>${esc(heading[2])}</h${heading[1].length}>`;
-    if (/^[-*]\s+/.test(line)) return `<li>${esc(line.replace(/^[-*]\s+/, ''))}</li>`;
-    if (!line.trim()) return '';
-    return `<p>${esc(line)}</p>`;
-  }).join('\n').replace(/(?:<li>.*?<\/li>\n?)+/gs, list => `<ul>${list}</ul>`);
-}
-function contentSections(page: RemotePage) {
-  const headings = [...page.content.matchAll(/^##\s+(.+)$/gm)];
-  if (!headings.length) return `<section class="remote-content"><div class="topic-kicker">CONTEÚDO DO BACKEND</div>${markdown(page.content) || '<p class="empty-inline">Esta página ainda não tem conteúdo.</p>'}</section>`;
-  const blocks = page.content.split(/(?=^##\s+)/m).filter(Boolean);
-  return blocks.map((block, index) => {
-    const title = /^##\s+(.+)$/m.exec(block)?.[1] ?? page.title;
-    return `<section class="topic-section" id="topic-${index}"><div class="topic-kicker">${index ? `SUBTÓPICO ${String(index).padStart(2, '0')}` : 'CONTEÚDO'}</div><h2>${esc(title)}</h2>${markdown(block.replace(/^##\s+.+\n?/, ''))}</section>`;
-  }).join('');
-}
 function renderPage(page: RemotePage) {
-  const sections = contentSections(page);
-  const headings = [...page.content.matchAll(/^##\s+(.+)$/gm)];
+  const article = renderArticle(page.content, pages);
+  const headings = article.headings.filter(heading => heading.level <= 3);
   const folder = folderForPage(page);
   const published = latestContribution?.parentPageId === page.id
     ? `<article class="published-contribution" role="status"><div class="topic-kicker">CONTEÚDO PUBLICADO</div><h3>${esc(latestContribution.page.title)}</h3><button class="published-link" data-page="${esc(latestContribution.page.id)}" type="button">Abrir página publicada →</button></article>`
     : '';
-  return `<article class="course-page"><div class="course-heading"><div class="eyebrow">${esc(rootFolder(folder?.id ?? null)?.name ?? folder?.name ?? 'WORKSPACE')} · PÁGINA DO BACKEND</div><h1>${esc(page.title)}</h1><p class="course-summary">Conteúdo carregado diretamente do workspace.</p><button id="go-home-page" class="breadcrumb-button">← Voltar aos conteúdos</button></div><div class="course-layout"><nav class="topic-nav"><div class="panel-title">NESTA PÁGINA</div>${headings.map((heading, index) => `<a href="#topic-${index}">${String(index + 1).padStart(2, '0')} · ${esc(heading[1])}</a>`).join('') || '<span class="empty-inline">Sem subtópicos cadastrados.</span>'}<a href="#contribute">＋ Contribuir com conteúdo</a></nav><div class="course-content">${sections}<section id="contribute" class="contributions-list"><div class="topic-kicker">CONTRIBUIÇÃO</div><h2>Adicionar conteúdo</h2><p>Sua contribuição será publicada como uma nova página na pasta desta matéria.</p>${published}${page.folderId ? '<button id="open-contribution" class="secondary-button">＋ Contribuir com esta matéria</button>' : '<p class="empty-inline">Esta página não está associada a uma pasta, então não é possível determinar onde salvar uma contribuição.</p>'}</section></div></div></article>`;
+  return `<article class="course-page"><div class="course-heading"><div class="eyebrow">${esc(rootFolder(folder?.id ?? null)?.name ?? folder?.name ?? 'WORKSPACE')} · PÁGINA DO BACKEND</div><h1>${esc(page.title)}</h1><p class="course-summary">Conteúdo carregado diretamente do workspace.</p><div class="page-actions"><button id="go-home-page" class="breadcrumb-button">← Voltar aos conteúdos</button><button id="edit-page" class="secondary-button" type="button">Editar página</button></div></div><div class="course-layout"><nav class="topic-nav"><div class="panel-title">NESTA PÁGINA</div>${headings.map(heading => `<a href="#${heading.id}" data-level="${heading.level}">${esc(heading.text)}</a>`).join('') || '<span class="empty-inline">Sem subtópicos cadastrados.</span>'}<a href="#contribute">＋ Contribuir com conteúdo</a></nav><div class="course-content"><section class="article-body">${article.html || '<p class="empty-inline">Esta página ainda não tem conteúdo.</p>'}</section><section id="contribute" class="contributions-list"><div class="topic-kicker">CONTRIBUIÇÃO</div><h2>Adicionar conteúdo</h2><p>Sua contribuição será publicada como uma nova página na pasta desta matéria.</p>${published}${page.folderId ? '<button id="open-contribution" class="secondary-button">＋ Contribuir com esta matéria</button>' : '<p class="empty-inline">Esta página não está associada a uma pasta, então não é possível determinar onde salvar uma contribuição.</p>'}</section></div></div></article>`;
 }
 function renderContributionDialog() {
   return `<dialog id="contribution-dialog" class="contribution-dialog"><form id="contribution-form"><button type="button" class="close-button" data-close-dialog="contribution-dialog">×</button><h2>Contribuir com conteúdo</h2><p>O conteúdo será publicado como uma nova página na pasta desta matéria.</p><label>Título<input name="title" maxlength="255" required></label><label>Conteúdo<textarea name="body" rows="7" required></textarea></label><div id="contribution-error" class="contribution-error" role="alert" aria-live="polite"></div><div class="dialog-actions"><button type="button" class="secondary-button" data-close-dialog="contribution-dialog">Cancelar</button><button type="submit" class="primary-button">Publicar</button></div></form></dialog>`;
@@ -124,8 +110,45 @@ function bind() {
   document.querySelector<HTMLFormElement>('#login-form')?.addEventListener('submit', event => { void signIn(event); });
   document.querySelector<HTMLButtonElement>('#open-profile')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#profile-dialog')?.showModal());
   document.querySelector<HTMLFormElement>('#profile-form')?.addEventListener('submit', event => { void saveProfile(event); });
-  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', logout);
+  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', () => { void logout(); });
   document.querySelector<HTMLButtonElement>('#dismiss-notice')?.addEventListener('click', () => { notice = ''; render(); });
+  document.querySelector<HTMLButtonElement>('#edit-page')?.addEventListener('click', () => { void editPage(); });
+  // Fetch the editor in the background while a page is being read (specs/002-page-editor research R10).
+  if (selectedPage) window.requestIdleCallback?.(() => preloadPageEditor());
+}
+/** The page editor (editor-ui, specs/002-page-editor/contracts/editor-mount.md). */
+async function editPage() {
+  const page = selectedPage;
+  if (!page || !currentUser || editorHandle) return;
+  const button = document.querySelector<HTMLButtonElement>('#edit-page');
+  if (button) button.disabled = true;
+  try {
+    editorHandle = await openPageEditor({
+      pageId: page.id,
+      host: document.querySelector<HTMLElement>('#editor-root')!,
+      currentUser: { id: currentUser.id, name: currentUser.name },
+      onClose: result => {
+        editorHandle = null;
+        if (result.saved && result.page) {
+          const saved = result.page;
+          selectedPage = saved;
+          pages = pages.map(item => item.id === saved.id ? saved : item);
+          notice = 'Página salva.';
+        }
+        render();
+        document.querySelector<HTMLButtonElement>('#edit-page')?.focus();
+      },
+      onSignedOut: () => { editorHandle = null; expireSession(); render(); }
+    });
+  } catch {
+    editorHandle = null;
+    notice = 'Não foi possível abrir o editor. Tente novamente.';
+    render();
+  }
+}
+/** Asks the editor to close first (it confirms unsaved changes); false means the member stayed. */
+async function leaveEditor() {
+  return editorHandle ? editorHandle.requestClose() : true;
 }
 function expireSession() {
   clearAuthSession();
@@ -167,7 +190,10 @@ async function signIn(event: SubmitEvent) {
     if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Entrar <span>→</span>'; }
   }
 }
-function logout() {
+async function logout() {
+  if (!(await leaveEditor())) return;
+  // Unsaved drafts stay on the device; remove them so the next person on a shared computer can't read them.
+  if (currentUser) clearDrafts(currentUser.id);
   clearAuthSession();
   currentUser = null;
   folders = [];
@@ -180,6 +206,7 @@ function logout() {
   render();
 }
 async function openPage(id: string) {
+  if (!(await leaveEditor())) return;
   try { selectedPage = await getPage(id); notice = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   catch (error) {
     if (!handleUnauthorized(error)) notice = error instanceof Error ? error.message : 'Não foi possível abrir a página.';
@@ -253,6 +280,8 @@ async function loadWorkspace() {
   }
   finally { loading = false; render(); }
 }
-document.addEventListener('keydown', event => { if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });
+// "/" jumps to search, except while typing: inputs, text areas and the page editor (contenteditable), whose slash menu needs it.
+const isTyping = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+document.addEventListener('keydown', event => { if (event.key === '/' && !isTyping(event.target)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });
 render();
 if (!loginRequired) void loadWorkspace();

@@ -966,3 +966,198 @@
     animation: fade-in var(--duration-fade) linear;
   }
 }
+
+/* ---------- Comments under blocks (web app PR #8, Clara's; class names from that PR) ---------- */
+
+.commentable-block {
+  position: relative;
+}
+
+/* A pen tick in the margin beside the block a thread belongs to. */
+.commentable-block:has(+ .comment-thread)::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--rule) / 2 - 6px);
+  left: calc(-40px + 12px);
+  width: 6px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--margin-color);
+}
+
+.comment-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  max-width: var(--column-width);
+  height: var(--rule);
+  margin: calc(var(--rule) * -1) 0 0;
+}
+
+.comment-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--ink-soft);
+  font: 500 var(--text-ui-small) / 1 var(--font-sans);
+}
+
+.comment-toggle:hover {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+.comment-thread {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  margin: 0 0 var(--rule);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+  font-family: var(--font-sans);
+}
+
+.comment-thread > .comment-toggle {
+  justify-self: start;
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.comment-card {
+  min-width: 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--rule-color);
+}
+
+.comment-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--ink);
+  font: 650 var(--text-ui-small) / 1.4 var(--font-sans);
+}
+
+.comment-meta time {
+  flex: none;
+  color: var(--ink-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.comment-text {
+  margin-top: var(--space-1);
+  color: var(--ink);
+  font: 400 1rem / 1.6 var(--font-serif);
+  overflow-wrap: anywhere;
+}
+
+.comment-card-actions,
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+}
+
+.comment-actions {
+  justify-content: space-between;
+}
+
+.comment-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 30px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--link);
+  font: 600 0.75rem / 1 var(--font-sans);
+}
+
+.comment-card-actions button:hover {
+  background: var(--highlight);
+}
+
+.comment-card-actions .comment-delete-button {
+  color: var(--link-missing);
+}
+
+.comment-icon-button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-reply {
+  margin: var(--space-3) 0 0 var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--rule-color);
+}
+
+.comment-create-form,
+.comment-edit-form,
+.admin-reply-form {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.comment-thread label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--ink-soft);
+  font: 600 var(--text-ui-small) / 1.4 var(--font-sans);
+}
+
+.comment-thread textarea {
+  width: 100%;
+  min-height: calc(var(--rule) * 3);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 40%, transparent);
+  background: transparent repeating-linear-gradient(to bottom, transparent 0 calc(var(--rule) - 1px), var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+  background-attachment: local;
+  color: var(--ink);
+  font: 400 1rem / var(--rule) var(--font-serif);
+  resize: vertical;
+}
+
+.comment-thread textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--link);
+  box-shadow: 0 2px 0 var(--link);
+}
+
+.comment-state {
+  color: var(--ink-soft);
+  font-size: var(--text-ui-small);
+}
+
+.comment-state-error,
+.comment-form-error {
+  color: var(--link-missing);
+  font-size: var(--text-ui-small);
+}
+
+.comments-summary,
+.comments-unavailable {
+  max-width: var(--column-width);
+  margin: var(--rule) 0;
+  color: var(--ink-soft);
+  font: italic 400 1rem / var(--rule) var(--font-serif);
+}

@@ -9,6 +9,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import * as backend from '../services/backend-api';
 import { ApiRequestError, VersionConflictError, type EditablePage, type RemotePage } from '../services/backend-api';
 import { ConflictScreen } from './ConflictScreen';
+import { DraftBanner } from './DraftBanner';
+import { createDraftWriter, draftKey, newestDraft, removeDraft, type Draft } from './drafts';
 import { rawMarkdownBlock } from './blocks/rawMarkdown';
 import { parseAnchor, type BlockLike } from './codec/anchors';
 import { decode, syncSnapshots, type Converter, type Decoded } from './codec/decode';
@@ -17,7 +19,7 @@ import { report } from './report';
 import { WIKILINK_TRIGGER, wikilinkItems } from './wikilinks';
 
 export type EditorApi = Pick<
-  typeof backend, 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages'
+  typeof backend, 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages' | 'login'
 >;
 export type CloseResult = { saved: boolean; page?: RemotePage };
 export type EditorHandle = { hasUnsavedChanges(): boolean; requestClose(): Promise<boolean> };
@@ -72,7 +74,7 @@ function titleProblem(title: string) {
   return null;
 }
 
-export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditorReady }: PageEditorProps) {
+export function PageEditor({ pageId, currentUser, onClose, api = backend, handleRef, onEditorReady }: PageEditorProps) {
   const editor = useCreateBlockNote({ schema, dictionary: pt });
   const converter = useMemo<Converter>(() => ({
     parse: markdown => editor.tryParseMarkdownToBlocks(markdown) as BlockLike[],
@@ -89,7 +91,13 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
   // Comments per block anchor, for the FR-009 warning; undefined while loading, null if unavailable.
   const [commentCounts, setCommentCounts] = useState<Map<string, number> | null | undefined>(undefined);
   const [pendingDeletion, setPendingDeletion] = useState<{ mine: Mine; affected: number | null } | null>(null);
+  const [offeredDraft, setOfferedDraft] = useState<ReturnType<typeof newestDraft>>(null);
   const decoded = useRef<Decoded | null>(null);
+  // The published content being edited: what "unsaved changes" and removed anchors are measured against.
+  // `decoded` may instead come from a restored draft, so untouched draft text is also kept byte for byte.
+  const baseline = useRef({ content: '', anchors: new Set<string>() });
+  const restoredDraftKey = useRef<string | null>(null);
+  const draftWriter = useRef<ReturnType<typeof createDraftWriter> | null>(null);
   const etag = useRef('');
   const loading = useRef(true);
   const titleId = useId();
@@ -107,6 +115,7 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     editor.replaceBlocks(editor.document, (next.blocks.length ? next.blocks : [{ type: 'paragraph' }]) as never);
     syncSnapshots(next, editor.document as BlockLike[]);
     decoded.current = next;
+    baseline.current = { content: version.page.content, anchors: new Set(next.segments.flatMap(s => (s.anchor ? [s.anchor] : []))) };
     etag.current = version.etag;
     setPage(version.page);
     setTitle(version.page.title);
@@ -122,6 +131,9 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     api.getPageForEdit(pageId).then(result => {
       if (cancelled) return;
       applyVersion(result);
+      const kept = newestDraft(currentUser.id, pageId);
+      const differs = kept && (kept.draft.content !== result.page.content || kept.draft.title !== result.page.title);
+      setOfferedDraft(differs ? kept : null);
       setStatus({ kind: 'editing' });
       requestAnimationFrame(() => {
         try {
@@ -138,7 +150,7 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
       setStatus({ kind: 'load_failed', status: httpStatus });
     });
     return () => { cancelled = true; };
-  }, [api, applyVersion, editor, pageId]);
+  }, [api, applyVersion, currentUser.id, editor, pageId]);
 
   useEffect(load, [load]);
 
@@ -159,8 +171,9 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const current = decoded.current;
-      if (current) setContentChanged(encode(current, editor.document as BlockLike[], converter) !== current.original);
+      if (current) setContentChanged(encode(current, editor.document as BlockLike[], converter) !== baseline.current.content);
     }, 150);
+    draftWriter.current?.schedule();
   }, [converter, editor]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -172,8 +185,54 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     const { title: currentTitle, page: currentPage } = titleRef.current;
     if (!current || !currentPage) return false;
     return currentTitle.trim() !== currentPage.title
-      || encode(current, editor.document as BlockLike[], converter) !== current.original;
+      || encode(current, editor.document as BlockLike[], converter) !== baseline.current.content;
   }, [converter, editor]);
+
+  // Drafts (US3): this tab's draft follows the editor; it disappears when there is nothing unsaved.
+  const pageLoaded = page !== null;
+  useEffect(() => {
+    if (!pageLoaded) return;
+    const writer = createDraftWriter(currentUser.id, pageId, (): Draft | null => {
+      const current = decoded.current;
+      const { title: currentTitle, page: currentPage } = titleRef.current;
+      if (!current || !currentPage) return null;
+      const content = encode(current, editor.document as BlockLike[], converter);
+      if (content === baseline.current.content && currentTitle.trim() === currentPage.title) return null;
+      return { title: currentTitle.trim(), content, baseEtag: etag.current, savedAt: new Date().toISOString() };
+    });
+    draftWriter.current = writer;
+    return () => { writer.stop(); draftWriter.current = null; };
+  }, [converter, currentUser.id, editor, pageId, pageLoaded]);
+
+  /** After a save or an explicit discard, no draft of this edit remains. */
+  const forgetDrafts = useCallback(() => {
+    draftWriter.current?.cancel();
+    removeDraft(draftKey(currentUser.id, pageId));
+    if (restoredDraftKey.current) removeDraft(restoredDraftKey.current);
+    restoredDraftKey.current = null;
+  }, [currentUser.id, pageId]);
+
+  const restoreDraft = useCallback(() => {
+    if (!offeredDraft) return;
+    const { draft, key } = offeredDraft;
+    loading.current = true;
+    const next = decode(draft.content, converter);
+    editor.replaceBlocks(editor.document, (next.blocks.length ? next.blocks : [{ type: 'paragraph' }]) as never);
+    syncSnapshots(next, editor.document as BlockLike[]);
+    decoded.current = next;
+    // Saved against the version the draft started from: if the page changed since, the conflict screen opens.
+    etag.current = draft.baseEtag;
+    restoredDraftKey.current = key;
+    setTitle(draft.title);
+    setContentChanged(draft.content !== baseline.current.content);
+    setOfferedDraft(null);
+    loading.current = false;
+  }, [converter, editor, offeredDraft]);
+
+  const discardOfferedDraft = useCallback(() => {
+    if (offeredDraft) removeDraft(offeredDraft.key);
+    setOfferedDraft(null);
+  }, [offeredDraft]);
 
   const close = useCallback((result: CloseResult) => onClose(result), [onClose]);
 
@@ -214,21 +273,22 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     try {
       const result = await api.savePage(pageId, changes, expected);
       etag.current = result.etag;
+      forgetDrafts();
       close({ saved: true, page: result.page });
     } catch (error) {
       await onSaveFailure(error, mine);
     }
-  }, [api, close, onSaveFailure, pageId]);
+  }, [api, close, forgetDrafts, onSaveFailure, pageId]);
 
   const save = useCallback(async () => {
     const current = decoded.current;
     if (!current || !page || titleProblem(title) || status.kind === 'saving') return;
     const mine = { title: title.trim(), content: encode(current, editor.document as BlockLike[], converter) };
-    if (mine.content === current.original && mine.title === page.title) return;
+    if (mine.content === baseline.current.content && mine.title === page.title) return;
 
     // FR-009: anchors that disappear take their comments' place with them; ask first.
     const kept = new Set(mine.content.match(/<!--b:[0-9a-f-]{36}-->/g)?.map(line => line.slice(6, -3)));
-    const removed = current.segments.flatMap(segment => (segment.anchor && !kept.has(segment.anchor) ? [segment.anchor] : []));
+    const removed = [...baseline.current.anchors].filter(anchor => !kept.has(anchor));
     if (removed.length) {
       const affected = commentCounts ? removed.reduce((sum, anchor) => sum + (commentCounts.get(anchor) ?? 0), 0) : null;
       if (affected !== 0) {
@@ -246,10 +306,13 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
       void submit(conflict.mine, conflict.latest.page.title, conflict.latest.etag);
       return;
     }
+    if (choice === 'discard') forgetDrafts();
     applyVersion(conflict.latest);
     setAside(choice === 'continue' ? conflict.mine : null);
     setStatus({ kind: 'editing' });
-  }, [applyVersion, conflict, submit]);
+  }, [applyVersion, conflict, forgetDrafts, submit]);
+
+
 
   const requestClose = useCallback((): Promise<boolean> => {
     if (!hasUnsavedChanges()) {
@@ -258,10 +321,13 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     }
     return new Promise(resolve => setConfirming(() => (leave: boolean) => {
       setConfirming(null);
-      if (leave) close({ saved: false });
+      if (leave) {
+        forgetDrafts();
+        close({ saved: false });
+      }
       resolve(leave);
     }));
-  }, [close, hasUnsavedChanges]);
+  }, [close, forgetDrafts, hasUnsavedChanges]);
 
   useEffect(() => { handleRef?.({ hasUnsavedChanges, requestClose }); }, [handleRef, hasUnsavedChanges, requestClose]);
 
@@ -329,6 +395,10 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
         </div>
       )}
 
+      {offeredDraft && (
+        <DraftBanner draft={offeredDraft.draft} others={offeredDraft.others} onRestore={restoreDraft} onDiscard={discardOfferedDraft} />
+      )}
+
       {conflict && (
         <ConflictScreen
           mine={conflict.mine}
@@ -357,7 +427,7 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
               aria-invalid={titleError !== null}
               aria-describedby={titleError ? titleId : undefined}
               value={title}
-              onChange={event => setTitle(event.target.value)}
+              onChange={event => { setTitle(event.target.value); draftWriter.current?.schedule(); }}
             />
             {titleError && <p id={titleId} className="page-editor__field-error">{titleError}</p>}
           </>

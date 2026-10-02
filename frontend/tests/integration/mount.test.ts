@@ -9,7 +9,8 @@ const api: EditorApi = {
   savePage: vi.fn(async () => ({ page: { ...page, version: 2 }, etag: '"p1-v2"' })),
   listPageCommentAnchors: vi.fn(async () => new Map()),
   getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
-    searchPages: vi.fn(async () => [])
+    searchPages: vi.fn(async () => []),
+    login: vi.fn()
 };
 
 let host: HTMLElement;

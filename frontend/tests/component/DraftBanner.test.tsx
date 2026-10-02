@@ -28,6 +28,8 @@ async function open(fake = api()) {
   render(<PageEditor pageId="p1" currentUser={{ id: 'u1', name: 'Bia' }} api={fake} onClose={onClose}
     onSignedOut={vi.fn()} onEditorReady={e => { editor = e as never; }} />);
   await screen.findByText('Publicado.');
+  // The title field appears in the same commit that starts the draft writer.
+  await screen.findByRole('textbox', { name: 'Título da página' });
   return { fake, onClose, user: userEvent.setup() };
 }
 

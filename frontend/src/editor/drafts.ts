@@ -109,6 +109,11 @@ export function createDraftWriter(userId: string, pageId: string, snapshot: () =
       timer = setTimeout(flush, delayMs);
     },
     flush,
+    /** Drops a pending write (after a save or a discard, there is nothing left to keep). */
+    cancel() {
+      clearTimeout(timer);
+      timer = undefined;
+    },
     stop() {
       clearTimeout(timer);
       window.removeEventListener('pagehide', flush);

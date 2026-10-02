@@ -98,6 +98,7 @@ describe('PageEditor conflict flow', () => {
       listPageCommentAnchors: vi.fn(async () => new Map()),
       getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
     searchPages: vi.fn(async () => []),
+    login: vi.fn(),
       ...over
     };
   }

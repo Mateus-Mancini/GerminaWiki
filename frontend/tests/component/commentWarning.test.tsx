@@ -20,7 +20,8 @@ function api(counts: Map<string, number> | Error): EditorApi {
     savePage: vi.fn(async () => ({ page: { ...page, version: 4 }, etag: '"p1-v4"' })),
     listPageCommentAnchors: vi.fn(async () => { if (counts instanceof Error) throw counts; return counts; }),
     getPublicProfile: vi.fn(),
-    searchPages: vi.fn(async () => [])
+    searchPages: vi.fn(async () => []),
+    login: vi.fn()
   };
 }
 

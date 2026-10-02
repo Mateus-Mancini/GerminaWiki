@@ -60,13 +60,18 @@ describe('openPageEditor', () => {
     await user.type(title, ' moderna');
     await waitFor(() => expect(handle.hasUnsavedChanges()).toBe(true));
 
+    const button = (label: string) => waitFor(() => {
+      const found = [...host.querySelectorAll('button')].find(b => b.textContent === label);
+      if (!found) throw new Error(`no "${label}" button yet`);
+      return found;
+    });
     const staying = handle.requestClose();
-    await user.click(await waitFor(() => [...host.querySelectorAll('button')].find(b => b.textContent === 'Continuar editando')!));
+    await user.click(await button('Continuar editando'));
     await expect(staying).resolves.toBe(false);
     expect(onClose).not.toHaveBeenCalled();
 
     const leaving = handle.requestClose();
-    await user.click(await waitFor(() => [...host.querySelectorAll('button')].find(b => b.textContent === 'Descartar')!));
+    await user.click(await button('Descartar'));
     await expect(leaving).resolves.toBe(true);
     expect(onClose).toHaveBeenCalledWith({ saved: false });
   });

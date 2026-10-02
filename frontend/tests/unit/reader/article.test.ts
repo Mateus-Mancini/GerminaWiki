@@ -71,4 +71,30 @@ describe('renderArticle', () => {
     renderArticle('[[fisica]]', pages);
     expect(marked.parse('[[fisica]]')).toBe('<p>[[fisica]]</p>\n');
   });
+
+  test('wraps each anchored block, so comments can attach to it', () => {
+    const A = '3f2a9c1e-0000-4000-8000-00000000000a', B = '3f2a9c1e-0000-4000-8000-00000000000b';
+    const host = dom(renderArticle(`Antes.\n\n<!--b:${A}-->\n# Título\n\n<!--b:${B}-->\nTexto.\n\n- um\n`).html);
+    const blocks = [...host.querySelectorAll<HTMLElement>('.article-block')];
+    expect(blocks.map(block => block.dataset.block)).toEqual([A, B]);
+    expect(blocks[1].querySelector('li')?.textContent).toBe('um');
+    expect(host.firstElementChild?.tagName).toBe('P');
+  });
+
+  test('a custom wrapper receives each block\'s sanitised HTML', () => {
+    const A = '3f2a9c1e-0000-4000-8000-00000000000a';
+    const seen: string[] = [];
+    const { html } = renderArticle(`<!--b:${A}-->\nOi <img src=x onerror="alert(1)">\n`, [], {
+      wrapBlock: (id, body) => { seen.push(body); return `<section data-id="${id}">${body}<button>Comentar</button></section>`; }
+    });
+    expect(seen[0]).not.toContain('onerror');
+    expect(dom(html).querySelector(`section[data-id="${A}"] button`)?.textContent).toBe('Comentar');
+  });
+
+  test('reference links defined in one block resolve in another', () => {
+    const A = '3f2a9c1e-0000-4000-8000-00000000000a', B = '3f2a9c1e-0000-4000-8000-00000000000b';
+    const link = dom(renderArticle(`<!--b:${A}-->\nVeja [o site][s].\n\n<!--b:${B}-->\n[s]: https://example.com\n`).html).querySelector('a');
+    expect(link?.getAttribute('href')).toBe('https://example.com');
+  });
 });
+

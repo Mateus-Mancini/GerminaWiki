@@ -12,6 +12,13 @@
 
 `001-wiki-workspace` (owner: Clara) defines the workspace and lists page editing under User Story 3, assigning `editor-ui` to Mancini (constitution, Product Ownership). This feature specifies that editor in detail: how a member opens a page for editing, saves it, recovers from a version conflict, and keeps the content that other features depend on (comment anchors, wikilinks) intact. Creating pages from the subject view ("Contribuir") stays in Clara's workspace flow; this feature only edits pages that already exist.
 
+## Clarifications
+
+### Session 2026-10-01
+
+- Q: Should the conflict screen offer "replace the published version with mine"? → A: Yes, behind an explicit confirmation that names what will be lost (e.g. who saved the newer version and when); never as a default or single-click action.
+- Q: Is image upload part of this feature? → A: Yes, as User Story 5 (P3), using the existing image storage flow; it can be deferred without blocking the rest of the editor.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Edit and save a page (Priority: P1)
@@ -46,7 +53,7 @@ Two members edit the same page. The second one to save is told that the page cha
 2. **Given** the conflict screen, **When** the member reviews it, **Then** they can see their version and the current published version side by side or with the differences highlighted, and copy any part of their own text.
 3. **Given** the conflict screen, **When** the member chooses to discard their changes, **Then** the editor shows the current published version and their draft is removed.
 4. **Given** the conflict screen, **When** the member chooses to continue editing on top of the current version, **Then** the editor loads the current published version with the member's text still available for copying, and the next save is checked against that new version.
-5. **Given** the conflict screen, **When** the member chooses to replace the published version with theirs, **Then** they must confirm explicitly that the other person's changes will be lost before the save happens; without confirmation nothing is saved. [NEEDS CLARIFICATION: should "replace with my version" be offered at all?]
+5. **Given** the conflict screen, **When** the member chooses to replace the published version with theirs, **Then** a confirmation names what will be lost (who saved the newer version and when) and the save happens only after the member confirms; cancelling returns to the conflict screen and nothing is saved. This option is never pre-selected or triggered by a single action.
 
 ---
 
@@ -89,7 +96,7 @@ Comments are attached to specific blocks of a page, and pages link to each other
 
 ### User Story 5 - Add images to a page (Priority: P3)
 
-While editing, a member adds an image to the page from their device. It uploads, appears in place, and is visible to readers after saving. [NEEDS CLARIFICATION: is image upload part of this feature?]
+While editing, a member adds an image to the page from their device. It uploads, appears in place, and is visible to readers after saving.
 
 **Why this priority**: Images make subject pages far more useful (diagrams, photos of the board), and the storage backend is ready. The editor is complete without them, so P3.
 
@@ -124,7 +131,7 @@ While editing, a member adds an image to the page from their device. It uploads,
 - **FR-002**: The editor MUST let members edit the page title and content as structured blocks (headings, paragraphs, bulleted and numbered lists, quotes, code blocks, links), with formatting shown as it will be read.
 - **FR-003**: Saving MUST send the content together with the version the member started from, so the server can reject saves based on an outdated version; the client MUST NOT overwrite a newer version without the member's explicit confirmation.
 - **FR-004**: The system MUST treat a server response meaning "the page changed since that version" as a version conflict and show the conflict screen (User Story 2), keeping the member's text.
-- **FR-005**: The conflict screen MUST show the member's version and the current published version with the differences identifiable, and offer at least: discard my changes, and continue editing on top of the current version.
+- **FR-005**: The conflict screen MUST show the member's version and the current published version with the differences identifiable, and offer: discard my changes; continue editing on top of the current version; and replace the published version with mine, which MUST require a separate explicit confirmation naming what will be lost.
 - **FR-006**: Unsaved changes MUST be kept on the member's device per page and per member until saved, discarded, or the member signs out, and MUST be offered back when editing that page again.
 - **FR-007**: When the session expires during editing, the member MUST be able to sign in again without leaving the editor, and the pending save MUST then complete or report a conflict; the draft MUST never be lost because of expiry.
 - **FR-008**: The editor MUST preserve each comment anchor attached to a block that still exists after editing, MUST NOT create duplicate anchors, and MUST NOT accept anchors from pasted text.
@@ -137,7 +144,7 @@ While editing, a member adds an image to the page from their device. It uploads,
 - **FR-015**: All editor actions MUST be operable by keyboard, with visible focus and state, and the editor MUST respect the reduced-motion preference.
 - **FR-016**: Failed saves, conflicts and authorization failures MUST be reported through the project's error-reporting mechanism without including page content or credentials (constitution Principle V).
 - **FR-017**: The editor MUST be mountable by the app shell as a self-contained component with a documented contract (inputs, events, loading and error states), without the shell depending on its internals (constitution Principle II).
-- **FR-018**: Members MUST be able to add images while editing, uploaded directly to the image storage and recorded on the page, within the allowed types and size. *(User Story 5; subject to clarification.)*
+- **FR-018**: Members MUST be able to add images while editing, uploaded directly to the image storage and recorded on the page, within the allowed types and size. *(User Story 5, P3.)*
 
 ### Key Entities
 

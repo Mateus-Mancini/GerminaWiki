@@ -200,6 +200,9 @@ function setBinderOpen(open: boolean) {
   binderOpen = open;
   document.querySelector('.notebook')?.setAttribute('data-binder-open', String(open));
   document.querySelector('#binder-toggle')?.setAttribute('aria-expanded', String(open));
+  // Below 900px the binder is a modal drawer over the sheet (notebook.css); the sheet behind the
+  // scrim must not be reachable by keyboard or a screen reader while the drawer is open.
+  document.querySelector('#main')?.toggleAttribute('inert', open);
   if (open) document.querySelector<HTMLElement>('#binder .tab--open .tab__button, #binder .tab__button, #search')?.focus();
   else document.querySelector<HTMLElement>('#binder-toggle')?.focus();
 }

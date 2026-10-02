@@ -76,6 +76,28 @@
   margin-bottom: 0;
 }
 
+/* Checklists (editor checklist blocks): a read-only tick, not a plain bullet. */
+.article-body .article-tasks {
+  padding-left: 0;
+  list-style: none;
+}
+
+.article-body .article-task {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+
+.article-body .article-task input[type="checkbox"] {
+  position: relative;
+  top: 0.1em;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  accent-color: var(--ink);
+  cursor: default;
+}
+
 /* Links: blue ballpoint underline; pages that don't exist yet are red and dashed. */
 .article-body a {
   color: var(--link);

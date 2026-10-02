@@ -56,6 +56,24 @@ describe('renderArticle', () => {
     expect(dom(html).querySelectorAll('h2#secao-ondas, h2#secao-ondas-2')).toHaveLength(2);
   });
 
+  test('renders a checklist (editor checklist blocks) with real, disabled checkboxes', () => {
+    const host = dom(renderArticle('- [ ] lavar\n- [x] estudar\n').html);
+    const boxes = [...host.querySelectorAll<HTMLInputElement>('.article-task input[type="checkbox"]')];
+    expect(boxes).toHaveLength(2);
+    expect(boxes.every(box => box.disabled)).toBe(true);
+    expect(boxes[0].checked).toBe(false);
+    expect(boxes[1].checked).toBe(true);
+    expect(host.querySelector('.article-tasks')).not.toBeNull();
+  });
+
+  test('never lets raw HTML smuggle in a free input alongside a checklist', () => {
+    const html = renderArticle('- [ ] tarefa\n\n<input type="text" name="x" value="y">\n<input type="checkbox">\n').html;
+    expect(html).not.toMatch(/type="text"|name="x"/);
+    const host = dom(html);
+    const boxes = [...host.querySelectorAll('input[type="checkbox"]')];
+    expect(boxes.every(box => box.hasAttribute('disabled'))).toBe(true);
+  });
+
   test('marks external links to open in a new tab', () => {
     const link = dom(renderArticle('[site](https://example.com)').html).querySelector('a')!;
     expect(link.getAttribute('target')).toBe('_blank');

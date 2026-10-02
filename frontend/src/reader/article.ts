@@ -87,6 +87,24 @@ export function renderArticle(content: string, pages: readonly LinkablePage[] = 
         const caption = title || '';
         const img = `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" loading="lazy" decoding="async"/>`;
         return caption ? `<figure>${img}<figcaption>${escapeHtml(caption)}</figcaption></figure>` : img;
+      },
+      // GFM task lists (the editor's checklist blocks) get their own list class and a styled,
+      // read-only checkbox, so a checklist written in the editor still reads as one here.
+      list({ items, ordered, start }: Tokens.List) {
+        const tag = ordered ? 'ol' : 'ul';
+        const taskList = items.some(item => item.task);
+        const body = items.map(item => this.listitem(item)).join('');
+        const startAttr = ordered && start !== 1 ? ` start="${start}"` : '';
+        return `<${tag}${startAttr}${taskList ? ' class="article-tasks"' : ''}>${body}</${tag}>\n`;
+      },
+      listitem(item: Tokens.ListItem) {
+        // marked's own `checkbox` token (and renderer) would add a second, unstyled input; task
+        // items are rendered from the remaining tokens only, with this renderer's own checkbox.
+        const tokens = item.task ? item.tokens.filter(token => token.type !== 'checkbox') : item.tokens;
+        const inner = this.parser.parse(tokens).replace(/^<p>|<\/p>\n?$/g, '');
+        if (!item.task) return `<li>${inner}</li>\n`;
+        const label = item.checked ? 'concluído' : 'pendente';
+        return `<li class="article-task"><input type="checkbox" ${item.checked ? 'checked ' : ''}disabled aria-label="${label}"/><span>${inner}</span></li>\n`;
       }
     }
   });
@@ -117,11 +135,30 @@ export function renderArticle(content: string, pages: readonly LinkablePage[] = 
   return { html, headings };
 }
 
+// Pages may embed raw HTML (e.g. the editor's rawMarkdown block); without this hook that could smuggle
+// a free, enabled <input> alongside the task-list checkboxes the `listitem` renderer legitimately emits.
+// Keep only a disabled checkbox, matching the editor's read-only reading view.
+DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+  if (data.tagName !== 'input') return;
+  const element = node as unknown as HTMLInputElement;
+  if (element.getAttribute('type') !== 'checkbox') {
+    element.remove();
+    return;
+  }
+  element.setAttribute('disabled', '');
+  element.removeAttribute('name');
+  element.removeAttribute('value');
+  element.removeAttribute('form');
+});
+
 function sanitize(html: string) {
   // Wide tables scroll on their own instead of widening the page.
   const wrapped = html.replace(/<table>/g, '<div class="article-table"><table>').replace(/<\/table>/g, '</table></div>');
   return DOMPurify.sanitize(wrapped, {
-    ADD_ATTR: ['target', 'data-page', 'aria-disabled', 'loading', 'decoding'],
-    FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select']
+    // <input> is only ever a disabled checkbox: GFM task lists from the editor's checklist blocks.
+    // The uponSanitizeElement hook above strips anything else that tries to ride along as raw HTML.
+    ADD_TAGS: ['input'],
+    ADD_ATTR: ['target', 'data-page', 'aria-disabled', 'loading', 'decoding', 'type', 'checked', 'disabled'],
+    FORBID_TAGS: ['style', 'form', 'button', 'textarea', 'select']
   });
 }

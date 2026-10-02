@@ -30,6 +30,8 @@
     "@blocknote/ariakit": "~0.55.0",
     "@blocknote/core": "~0.55.0",
     "@blocknote/react": "~0.55.0",
+    "@fontsource-variable/public-sans": "^5.3.0",
+    "@fontsource/libertinus-serif": "^5.3.0",
     "diff": "^9.0.0",
     "dompurify": "^3.4.16",
     "marked": "^18.0.14",

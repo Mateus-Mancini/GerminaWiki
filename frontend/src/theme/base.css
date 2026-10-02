@@ -217,6 +217,11 @@ kbd {
   min-height: 0;
 }
 
+.form-success {
+  color: var(--ink);
+  font: 500 var(--text-ui-small) / 1.4 var(--font-sans);
+}
+
 /* Dialogs: a sheet laid over the notebook. */
 .sheet-dialog {
   width: min(560px, calc(100vw - 32px));

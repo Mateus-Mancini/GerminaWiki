@@ -30,7 +30,7 @@
 | Token | Value |
 |---|---|
 | `--font-serif` | `"Libertinus Serif", "Linux Libertine", Georgia, "Times New Roman", serif` |
-| `--font-sans` | `"Public Sans", system-ui, "Segoe UI", Roboto, sans-serif` |
+| `--font-sans` | `"Public Sans Variable", "Public Sans", system-ui, "Segoe UI", Roboto, sans-serif` |
 | `--font-mono` | `ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace` |
 | `--text-body` | `1.1875rem` (19px); `1.0625rem` (17px) below 600px |
 | `--text-headword` | `clamp(2.25rem, 1.6rem + 2.6vw, 3.4rem)` |

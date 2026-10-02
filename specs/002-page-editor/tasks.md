@@ -156,7 +156,7 @@ The codec is the data-integrity core: every save goes through it.
 - [X] T024 [P] [US4] `frontend/tests/unit/codec/stability.test.ts`:
   - 20 consecutive random edit-and-encode cycles on a page with anchored blocks
   - every surviving block keeps its anchor and no anchor is duplicated (SC-003)
-- [ ] T025 [P] [US4] `frontend/tests/component/commentWarning.test.tsx`:
+- [X] T025 [P] [US4] `frontend/tests/component/commentWarning.test.tsx`:
   - deleting blocks whose anchors have comments shows a warning before saving and lists how many comments are affected (FR-009)
   - blocks without comments delete silently
 - [X] T026 [P] [US4] `frontend/tests/component/wikilinks.test.tsx`:
@@ -167,7 +167,7 @@ The codec is the data-integrity core: every save goes through it.
 ### Implementation
 
 - [X] T027 [US4] `frontend/src/editor/wikilinks.ts`: a `SuggestionMenuController` with trigger `[[`, `searchPages` debounced 200 ms, inserting `[[slug]]` (R8)
-- [ ] T028 [US4] Comment-anchor warning in `PageEditor.tsx`: load `listPageCommentAnchors` on open, and compute anchors that would be deleted before saving
+- [X] T028 [US4] Comment-anchor warning in `PageEditor.tsx`: load `listPageCommentAnchors` on open, and compute anchors that would be deleted before saving
 
 ---
 

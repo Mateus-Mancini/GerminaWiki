@@ -86,6 +86,9 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
   const [confirming, setConfirming] = useState<((leave: boolean) => void) | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [aside, setAside] = useState<Mine | null>(null);
+  // Comments per block anchor, for the FR-009 warning; undefined while loading, null if unavailable.
+  const [commentCounts, setCommentCounts] = useState<Map<string, number> | null | undefined>(undefined);
+  const [pendingDeletion, setPendingDeletion] = useState<{ mine: Mine; affected: number | null } | null>(null);
   const decoded = useRef<Decoded | null>(null);
   const etag = useRef('');
   const loading = useRef(true);
@@ -138,6 +141,14 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
   }, [api, applyVersion, editor, pageId]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listPageCommentAnchors(pageId)
+      .then(counts => { if (!cancelled) setCommentCounts(counts); })
+      .catch(() => { if (!cancelled) setCommentCounts(null); });
+    return () => { cancelled = true; };
+  }, [api, pageId]);
 
   const getWikilinkItems = useMemo(() => wikilinkItems(editor as never, api.searchPages), [api, editor]);
 
@@ -215,8 +226,18 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     const mine = { title: title.trim(), content: encode(current, editor.document as BlockLike[], converter) };
     if (mine.content === current.original && mine.title === page.title) return;
 
+    // FR-009: anchors that disappear take their comments' place with them; ask first.
+    const kept = new Set(mine.content.match(/<!--b:[0-9a-f-]{36}-->/g)?.map(line => line.slice(6, -3)));
+    const removed = current.segments.flatMap(segment => (segment.anchor && !kept.has(segment.anchor) ? [segment.anchor] : []));
+    if (removed.length) {
+      const affected = commentCounts ? removed.reduce((sum, anchor) => sum + (commentCounts.get(anchor) ?? 0), 0) : null;
+      if (affected !== 0) {
+        setPendingDeletion({ mine, affected });
+        return;
+      }
+    }
     await submit(mine, page.title, etag.current);
-  }, [converter, editor, page, status.kind, submit, title]);
+  }, [commentCounts, converter, editor, page, status.kind, submit, title]);
 
   const resolveConflict = useCallback((choice: 'discard' | 'continue' | 'replace') => {
     if (!conflict) return;
@@ -345,6 +366,27 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
           <SuggestionMenuController triggerCharacter={WIKILINK_TRIGGER} getItems={getWikilinkItems} />
         </BlockNoteView>
       </div>
+
+      {pendingDeletion && page && (
+        <div className="page-editor__backdrop">
+          <div role="alertdialog" aria-modal="true" aria-labelledby={`${titleId}-comments`} aria-describedby={`${titleId}-comments-text`} className="page-editor__dialog">
+            <h2 id={`${titleId}-comments`}>Remover blocos com comentários?</h2>
+            <p id={`${titleId}-comments-text`}>
+              {pendingDeletion.affected === null
+                ? 'Alguns blocos removidos podem ter comentários, que perderão o lugar na página.'
+                : `${pendingDeletion.affected} ${pendingDeletion.affected === 1 ? 'comentário perderá' : 'comentários perderão'} o lugar porque os blocos onde estavam foram removidos.`}
+            </p>
+            <div className="page-editor__actions">
+              <button type="button" autoFocus onClick={() => setPendingDeletion(null)}>Voltar</button>
+              <button type="button" className="page-editor__danger" onClick={() => {
+                const { mine } = pendingDeletion;
+                setPendingDeletion(null);
+                void submit(mine, page.title, etag.current);
+              }}>Salvar mesmo assim</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirming && (
         <div className="page-editor__backdrop">

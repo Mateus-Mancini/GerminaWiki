@@ -86,13 +86,13 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T015 [P] [US1] `frontend/tests/integration/mount.test.ts`, per contracts/editor-mount.md:
+- [X] T015 [P] [US1] `frontend/tests/integration/mount.test.ts`, per contracts/editor-mount.md:
   - `openPageEditor` mounts in the host and sets `body[data-editing]`
   - focus goes to the start of the content
   - `onClose({ saved: true, page })` fires after save
   - `requestClose()` asks to confirm when there are unsaved changes
   - after `onClose`, the shell's re-render focuses `#edit-page`
-- [ ] T016 [P] [US1] `frontend/tests/component/PageEditor.test.tsx`:
+- [X] T016 [P] [US1] `frontend/tests/component/PageEditor.test.tsx`:
   - loading state
   - save via button and `Ctrl+S` sends the encoded content with `If-Match`
   - "Nada para salvar" when unchanged
@@ -106,7 +106,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Implementation
 
-- [ ] T017 [US1] `frontend/src/editor/PageEditor.tsx`:
+- [X] T017 [US1] `frontend/src/editor/PageEditor.tsx`:
   - title field and BlockNote view (Ariakit UI) with the `rawMarkdown` block in the schema
   - save bar with the status state machine from data-model.md (loading, editing, saving, saved, failed, forbidden, deleted, and a minimal `conflict` state that keeps the text)
   - `Ctrl/Cmd+S`

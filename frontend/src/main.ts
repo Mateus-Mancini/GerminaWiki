@@ -297,6 +297,8 @@ async function loadWorkspace() {
   }
   finally { loading = false; render(); }
 }
-document.addEventListener('keydown', event => { if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });
+// "/" jumps to search, except while typing: inputs, text areas and the page editor (contenteditable), whose slash menu needs it.
+const isTyping = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+document.addEventListener('keydown', event => { if (event.key === '/' && !isTyping(event.target)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });
 render();
 if (!loginRequired) void loadWorkspace();

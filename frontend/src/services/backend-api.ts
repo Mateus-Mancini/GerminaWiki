@@ -365,3 +365,16 @@ export function confirmImageUpload(pageId: string, upload: { uploadKey: string; 
 export function apiUrl(path: string) {
   return `${baseUrl}${path}`;
 }
+
+export function createFolder(name: string, parentFolderId: string | null) {
+  return request<FolderNode>('/api/folders', { method: 'POST', body: JSON.stringify({ name, parentFolderId }) });
+}
+
+/** Renames and/or moves a folder; a null parentFolderId moves it to the top level (a section). */
+export function updateFolder(id: string, change: { name?: string; parentFolderId?: string | null }) {
+  return request<FolderNode>(`/api/folders/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(change) });
+}
+
+export function deleteFolder(id: string) {
+  return request<void>(`/api/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

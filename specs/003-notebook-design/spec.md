@@ -12,6 +12,16 @@
 
 GerminaWiki is read far more than it is written. Students open a subject, read a page like an encyclopedia entry, follow links, and sometimes edit. They use school and home desktops, often shared, and teachers sometimes put a page on the classroom projector. The direction was chosen by the product owner from three candidates (`.impeccable/decision/`) and is recorded in `PRODUCT.md` and the surface brief (`.impeccable/surfaces/frontend-src-main-ts.md`). This feature changes how every screen looks and moves. It does not change what the screens do: data, permissions and flows stay as they are.
 
+## Clarifications
+
+### Session 2026-10-02
+
+The product owner was away and had asked not to be stopped for questions, so the recommended option was taken for each point below. They are recorded here to be confirmed or changed in review.
+
+- Q: How does a folder tree of any shape map onto the binder, given that production's top-level folders are areas such as "Desenvolvimento" and "Arquitetura", not years? → A: Top-level folders are the binder's section labels (years in the intended use, any grouping today). Their child folders are the divider tabs. Pages placed directly in a top-level folder go on a first divider named after that folder. Deeper folders become sub-headings inside their divider's page list.
+- Q: What does choosing a subject on the home screen open? → A: The subject's contents sheet: a ruled sheet listing its pages (and sub-headings) with each page's opening line, like an encyclopedia's index page. It also opens that divider in the binder. Opening the first page directly would hide the subject's other pages.
+- Q: How does the binder behave on narrow screens? → A: Below 900px it becomes an off-canvas drawer, opened by a "Matérias" toggle in the top bar, closed with Esc or by choosing a page, and it returns focus to the toggle.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Read a page on a ruled sheet (Priority: P1)
@@ -43,8 +53,8 @@ The left side of the app is a binder. Years are section labels, and each subject
 
 1. **Given** folders for years and subjects, **When** the app opens, **Then** the binder shows each year as a label and each subject as a divider tab in its own colour, the same colour on every visit.
 2. **Given** a student on a page, **When** they look at the binder, **Then** the page's subject tab is pulled out, its pages are listed, and the current page is marked.
-3. **Given** the home screen, **When** it loads, **Then** every subject appears as a divider with its name, its year and its number of pages, and choosing one opens its first page or its page list.
-4. **Given** a window narrower than 900px, **When** the app is shown, **Then** the binder folds into a toggle so the sheet keeps the full width, and opening it does not cover the sheet's text permanently.
+3. **Given** the home screen, **When** it loads, **Then** every subject appears as a divider with its name, its year and its number of pages, and choosing one opens its contents sheet, which lists its pages with their opening lines.
+4. **Given** a window narrower than 900px, **When** the app is shown, **Then** the binder becomes a drawer behind a "Matérias" toggle so the sheet keeps the full width; Esc or choosing a page closes it.
 5. **Given** the search field, **When** the student types, **Then** results filter as before (search behaviour does not change).
 
 ---
@@ -129,9 +139,10 @@ The sign-in screen, profile dialog, contribution dialog, notices and empty or lo
 
 **Binder and home (US2)**
 
-- **FR-010**: The left binder MUST show years as labels and subjects as divider tabs; the current subject's tab MUST be visibly pulled out with its pages listed, and the current page MUST carry a "here" mark that is also exposed to assistive technology (e.g. `aria-current`).
-- **FR-011**: The home screen MUST present subjects as dividers with name, year and page count, replacing the current card grid, and MUST keep the existing folder filter and search behaviour.
-- **FR-012**: Below 900px wide, the binder MUST collapse behind a toggle that is keyboard-operable and announces its state.
+- **FR-010**: The left binder MUST show top-level folders (years) as labels and their child folders (subjects) as divider tabs, with pages placed directly in a top-level folder on a first divider named after it and deeper folders as sub-headings in their divider's page list; the current subject's tab MUST be visibly pulled out with its pages listed, and the current page MUST carry a "here" mark that is also exposed to assistive technology (e.g. `aria-current`).
+- **FR-011**: The home screen MUST present subjects as dividers with name, year and page count, replacing the current card grid, and MUST keep the existing folder filter and search behaviour. Choosing a subject MUST open its contents sheet and its divider in the binder.
+- **FR-011a**: A subject's contents sheet MUST list its pages, grouped under sub-headings for deeper folders, each with its title and opening line, and MUST state when the subject has no pages yet.
+- **FR-012**: Below 900px wide, the binder MUST become an off-canvas drawer opened by a "Matérias" toggle that announces its state; Esc or choosing a page closes it and returns focus to the toggle.
 
 **Editing (US3)**
 
@@ -158,7 +169,8 @@ The sign-in screen, profile dialog, contribution dialog, notices and empty or lo
 ### Key Entities
 
 - **Design tokens**: the named values every screen uses (colours, typefaces, sizes, spacing, radii, durations).
-- **Subject divider**: a subject (a folder in the tree) shown as a tab with its stable colour, its year and its pages.
+- **Subject divider**: a subject (a second-level folder, or a top-level folder's own pages) shown as a tab with its stable colour, its year and its pages.
+- **Contents sheet**: a subject's index page, listing its pages and sub-headings.
 - **Sheet**: one page shown or edited on ruled paper: headword, meta line, sections and article.
 
 ## Success Criteria *(mandatory)*
@@ -177,7 +189,7 @@ The sign-in screen, profile dialog, contribution dialog, notices and empty or lo
 
 - The app stays light-only: a notebook page is light by nature, and no dark mode is in scope.
 - Colour per subject is derived from the folder, not stored: there is no field for it in the API, and the API is out of scope.
-- The structure of years and subjects is the existing folder tree (top-level folders are years, their children subjects). Pages directly under a year are shown under the year label.
+- The structure of years and subjects is the existing folder tree, mapped as in Clarifications: top-level folders are labels, their children are dividers. Today's production folders are areas rather than years; the mapping works for both.
 - The shell keeps its current architecture (plain TypeScript rendering HTML strings, owned by Clara); this feature restyles and restructures its markup but does not convert it to React. Clara reviews every change to her files.
 - The comments UI (Clara's PR #8) and the sign-up screen will land separately; this feature styles the hooks they need (block wrappers, form controls) but does not implement comments.
 - The warm-up screen for cold starts is a separate feature and is not designed here.

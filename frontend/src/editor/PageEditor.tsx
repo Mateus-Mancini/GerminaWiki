@@ -16,11 +16,14 @@ import { rawMarkdownBlock } from './blocks/rawMarkdown';
 import { parseAnchor, type BlockLike } from './codec/anchors';
 import { decode, syncSnapshots, type Converter, type Decoded } from './codec/decode';
 import { encode } from './codec/encode';
+import { createImageUploader } from './images';
 import { report } from './report';
 import { WIKILINK_TRIGGER, wikilinkItems } from './wikilinks';
 
 export type EditorApi = Pick<
-  typeof backend, 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages' | 'login'
+  typeof backend,
+  | 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages' | 'login'
+  | 'requestImageUpload' | 'confirmImageUpload' | 'apiUrl'
 >;
 export type CloseResult = { saved: boolean; page?: RemotePage };
 export type EditorHandle = { hasUnsavedChanges(): boolean; requestClose(): Promise<boolean> };
@@ -76,7 +79,11 @@ function titleProblem(title: string) {
 }
 
 export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = backend, handleRef, onEditorReady }: PageEditorProps) {
-  const editor = useCreateBlockNote({ schema, dictionary: pt });
+  // Images upload straight to storage through the API's presigned URLs (US5). Through a ref, so the
+  // editor instance (and the text in it) never has to be recreated when props change.
+  const uploader = useRef(createImageUploader(pageId, api));
+  uploader.current = useMemo(() => createImageUploader(pageId, api), [api, pageId]);
+  const editor = useCreateBlockNote({ schema, dictionary: pt, uploadFile: file => uploader.current(file) });
   const converter = useMemo<Converter>(() => ({
     parse: markdown => editor.tryParseMarkdownToBlocks(markdown) as BlockLike[],
     serialize: blocks => editor.blocksToMarkdownLossy(blocks as never)

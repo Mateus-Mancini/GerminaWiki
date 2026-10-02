@@ -19,6 +19,9 @@ function api(over: Partial<EditorApi> = {}): EditorApi {
     listPageCommentAnchors: vi.fn(async () => new Map()),
     getPublicProfile: vi.fn(),
     searchPages: vi.fn(async () => []),
+    requestImageUpload: vi.fn(),
+    confirmImageUpload: vi.fn(),
+    apiUrl: (path: string) => path,
     login: vi.fn(async () => ({ accessToken: 't', tokenType: 'Bearer' as const, expiresAt: '2099-01-01T00:00:00Z' })),
     ...over
   };

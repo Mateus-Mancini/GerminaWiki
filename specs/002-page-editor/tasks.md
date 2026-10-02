@@ -204,14 +204,14 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T036 [P] [US5] `frontend/tests/unit/images.test.ts` (stubbed `fetch`):
+- [X] T036 [P] [US5] `frontend/tests/unit/images.test.ts` (stubbed `fetch`):
   - rejects types other than `image/png`, `image/jpeg`, `image/webp`, `image/gif` and sizes outside 1–5,242,880 before any request
   - runs request → PUT with exactly the returned headers → confirm
   - returns `<API base>` + `url`; maps 409 and network errors to messages
 
 ### Implementation
 
-- [ ] T037 [US5] `frontend/src/editor/images.ts` and the `uploadFile` option in `PageEditor.tsx` (R9)
+- [X] T037 [US5] `frontend/src/editor/images.ts` and the `uploadFile` option in `PageEditor.tsx` (R9)
 
 ---
 

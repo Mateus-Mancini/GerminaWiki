@@ -12,6 +12,9 @@ const api: EditorApi = {
   listPageCommentAnchors: vi.fn(async () => new Map()),
   getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
     searchPages: vi.fn(async () => []),
+    requestImageUpload: vi.fn(),
+    confirmImageUpload: vi.fn(),
+    apiUrl: (path: string) => path,
     login: vi.fn()
 };
 

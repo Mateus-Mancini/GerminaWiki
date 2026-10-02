@@ -21,6 +21,9 @@ function api(counts: Map<string, number> | Error): EditorApi {
     listPageCommentAnchors: vi.fn(async () => { if (counts instanceof Error) throw counts; return counts; }),
     getPublicProfile: vi.fn(),
     searchPages: vi.fn(async () => []),
+    requestImageUpload: vi.fn(),
+    confirmImageUpload: vi.fn(),
+    apiUrl: (path: string) => path,
     login: vi.fn()
   };
 }

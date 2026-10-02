@@ -256,3 +256,41 @@ export async function listPageCommentAnchors(pageId: string): Promise<Map<string
   }
   return counts;
 }
+
+/** Permission to PUT one image straight to storage (ms-germina-wiki spec 005). */
+export type UploadPermission = {
+  uploadKey: string;
+  uploadUrl: string;
+  method: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+};
+
+export type PageImage = {
+  id: string;
+  pageId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  uploadedBy: string;
+  createdAt: string;
+  /** API-relative address, e.g. /api/images/{id}. */
+  url: string;
+};
+
+export function requestImageUpload(pageId: string, file: { contentType: string; size: number }) {
+  return request<UploadPermission>(`/api/pages/${encodeURIComponent(pageId)}/images/uploads`, {
+    method: 'POST', body: JSON.stringify(file)
+  });
+}
+
+export function confirmImageUpload(pageId: string, upload: { uploadKey: string; fileName: string }) {
+  return request<PageImage>(`/api/pages/${encodeURIComponent(pageId)}/images`, {
+    method: 'POST', body: JSON.stringify(upload)
+  });
+}
+
+/** Absolute API address of a path; stored image addresses must work from any page, so they include it. */
+export function apiUrl(path: string) {
+  return `${baseUrl}${path}`;
+}

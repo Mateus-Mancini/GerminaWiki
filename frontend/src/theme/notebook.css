@@ -167,12 +167,15 @@
 .tab__button::before {
   content: "";
   flex: none;
-  width: 10px;
+  width: 16px;
   height: 18px;
+  margin-right: -6px;
   border-radius: 2px 4px 4px 2px;
   background: var(--tab-colour);
   box-shadow: inset -2px 0 0 rgb(0 0 0 / 0.14);
-  transition: width var(--duration-lift) var(--ease-out);
+  transform: scaleX(0.625);
+  transform-origin: left;
+  transition: transform var(--duration-lift) var(--ease-out);
 }
 
 .tab__button:hover {
@@ -211,7 +214,7 @@
 }
 
 .tab--open > .tab__button::before {
-  width: 16px;
+  transform: none;
 }
 
 .tab--open .tab__count {

@@ -177,7 +177,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T029 [P] [US3] `frontend/tests/unit/drafts.test.ts`:
+- [X] T029 [P] [US3] `frontend/tests/unit/drafts.test.ts`:
   - key `germinawiki.draft.<userId>.<pageId>.<tabId>` (`tabId` from `sessionStorage`), so two tabs never overwrite each other
   - debounced write; flush on `pagehide`
   - removed after save or discard
@@ -191,7 +191,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Implementation
 
-- [ ] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`; per-tab key)
+- [X] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`; per-tab key)
 - [ ] T033 [US3] `frontend/src/editor/DraftBanner.tsx` and its wiring in `PageEditor.tsx`
 - [ ] T034 [US3] `frontend/src/editor/ReauthDialog.tsx`, reusing `login()` from `backend-api.ts`, wired to the `reauth` state
 - [ ] T035 [US3] Call `clearDrafts(userId)` in the shell's `logout()` in `frontend/src/main.ts` (Clara's review)

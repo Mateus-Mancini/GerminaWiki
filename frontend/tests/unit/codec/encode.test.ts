@@ -88,6 +88,13 @@ describe('encode with edits', () => {
     expect(anchors(out)).toEqual([A1, 'dddddddd-dddd-4ddd-8ddd-dddddddddddd']);
   });
 
+  test('empty new blocks are not written (BlockNote keeps one empty paragraph in an empty page)', () => {
+    const decoded = decode(`<!--b:${A1}-->\nUm.\n`, converter);
+    const out = encode(decoded, [...structuredClone(decoded.blocks), paragraph('empty', '')], converter);
+    expect(out).toBe(`<!--b:${A1}-->\nUm.\n`);
+    expect(encode(decode('', converter), [paragraph('empty', '')], converter)).toBe('');
+  });
+
   test('raw Markdown blocks are written back exactly as edited', () => {
     const decoded = decode('Linha com <span>html</span>.\n', converter);
     const doc = clone(decoded.blocks);

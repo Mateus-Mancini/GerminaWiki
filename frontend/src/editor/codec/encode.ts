@@ -24,8 +24,9 @@ export function encode(
   const occurrences = countBy(groups.map(g => g.segment));
   let out = '';
 
-  groups.forEach((group, index) => {
+  for (const group of groups) {
     const segment: Segment | undefined = decoded.segments[group.segment];
+    const first = out === '';
     const anchor = group.blocks.map(b => b.id).find(id => knownAnchors.has(id) && !usedAnchors.has(id));
     if (anchor) usedAnchors.add(anchor);
 
@@ -33,13 +34,16 @@ export function encode(
       && sameIds(group.blocks, segment.blockIds) && JSON.stringify(group.blocks) === segment.snapshot;
 
     if (unchanged) {
-      out += index === 0 ? segment.prefix.replace(/^\n+/, '') : segment.prefix.startsWith('\n') ? segment.prefix : `\n\n${segment.prefix}`;
+      out += first ? segment.prefix.replace(/^\n+/, '') : segment.prefix.startsWith('\n') ? segment.prefix : `\n\n${segment.prefix}`;
       out += segment.source;
-    } else {
-      out += index === 0 ? '' : '\n\n';
-      out += `${anchorLine(anchor ?? newId())}\n${serialize(group.blocks, converter)}`;
+      continue;
     }
-  });
+    const body = serialize(group.blocks, converter);
+    // Empty blocks (BlockNote keeps one in an empty page) store nothing; an anchor can't precede nothing.
+    if (body.trim() === '') continue;
+    out += `${first ? '' : '\n\n'}${anchorLine(anchor ?? newId())}\n${body}`;
+  }
+  if (out === '') return '';
 
   const last = groups.at(-1);
   const lastUntouched = last !== undefined && last.segment >= 0 && last.segment === decoded.segments.length - 1

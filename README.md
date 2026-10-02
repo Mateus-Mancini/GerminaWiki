@@ -31,17 +31,25 @@ The app is hosted on **Firebase Hosting** (free Spark plan) at https://germinawi
 - **Merges to `main`** publish automatically (`.github/workflows/release.yml`).
 
 Pipeline design and one-time setup: [`docs/ci-cd.md`](https://github.com/Mateus-Mancini/ms-germina-wiki/blob/main/docs/ci-cd.md) and [`specs/003-ci-cd`](https://github.com/Mateus-Mancini/ms-germina-wiki/tree/main/specs/003-ci-cd) in the API repository.
-# GerminaWiki
-
-Frontend de disciplinas do Ensino Médio. Execute `npm install` e `npm run dev`.
-
 ## Integração com API
 
-Configure `VITE_API_BASE_URL` com a URL base do backend (padrão: `http://localhost:3000`) e
-use o botão **Conectar à API** na interface. A integração usa `POST /session/login`,
-`GET /pages/search`, `GET /pages/{id}` e `POST /pages/{id}/comment-threads`.
+O frontend tenta carregar pastas e páginas automaticamente ao abrir. Em desenvolvimento,
+usa `http://localhost:8080` por padrão; em produção, configure `VITE_API_BASE_URL` com a
+URL base do backend no ambiente de build. O Vite roda na porta `3000`, liberada pelo CORS
+local do backend. Sem a variável de produção, o frontend mostra um erro de configuração em
+vez de tentar acessar o `localhost` de cada visitante.
+O workflow de publicação usa a variável `VITE_API_BASE_URL` do ambiente GitHub Actions
+`production`, com a URL oficial da API como padrão.
 
-As disciplinas e seus materiais introdutórios são mantidos no frontend. Quando a API contém
-uma página com título igual ao da matéria, o frontend exibe seu conteúdo e publica
-contribuições como comentários dessa página. Se não houver página correspondente, as
-contribuições ficam salvas no navegador. O backend disponível não oferece criação de páginas.
+O login envia e-mail e senha para `POST /api/auth/login`. O token Bearer fica em
+`sessionStorage` somente até o vencimento informado pela API ou até o usuário sair; ele é
+incluído nas chamadas autenticadas de pastas, páginas, busca, contribuições e perfil. Ao
+receber `401`, a sessão é descartada e o frontend volta para a tela de login. O perfil próprio
+é carregado por `GET /api/users/me` e pode ser atualizado por `PATCH /api/users/me`.
+
+Todas as pastas, páginas, matérias e conteúdos exibidos vêm da API. Se ela estiver
+indisponível, o frontend mostra o erro e não substitui os dados por conteúdo de demonstração.
+O `@AdminOnly` do backend é um mecanismo de autorização para operações que o backend marcar;
+ele não cria rotas administrativas por si só. O esquema do banco não inclui dados iniciais de
+matérias. As pastas e páginas precisam ser cadastradas no backend para aparecer no site.
+Contribuições são publicadas como páginas novas em `POST /api/pages`, dentro da pasta aberta.

@@ -12,6 +12,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
-    setupFiles: ['tests/setup.ts']
+    setupFiles: ['tests/setup.ts'],
+    // Component tests mount a full BlockNote editor in jsdom: about 1-2 s each alone, but near the 5 s
+    // default when the machine is busy, which made them fail at random.
+    testTimeout: 15_000
   }
 });

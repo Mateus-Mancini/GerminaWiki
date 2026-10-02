@@ -273,3 +273,125 @@
 body[data-editing] #root .main {
   visibility: hidden;
 }
+
+/* Conflict screen (US2). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.conflict {
+  max-width: 1100px;
+  margin: 24px auto 64px;
+  padding: 0 5.5%;
+}
+
+.conflict__header h2 {
+  margin: 0 0 6px;
+  color: #163e36;
+  font: 800 24px/1.2 Manrope, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.conflict__header p {
+  margin: 0 0 16px;
+  color: var(--editor-ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.conflict__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.page-editor .conflict__primary {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent);
+  color: #fff;
+}
+
+.page-editor .conflict__danger {
+  border-color: #e4c4c0;
+  color: var(--editor-danger);
+}
+
+.conflict__versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.conflict__version {
+  min-width: 0;
+  border: 1px solid var(--editor-line);
+  border-radius: 10px;
+  background: var(--editor-paper);
+}
+
+.conflict__version h3 {
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--editor-line);
+  font: 700 11px 'DM Sans', sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--editor-ink-soft);
+}
+
+.conflict__lines {
+  padding: 8px 0;
+  font: 13px/1.65 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.conflict__lines > * {
+  display: block;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.conflict__lines ins {
+  background: #e3f2e6;
+  box-shadow: inset 3px 0 #4e9877;
+}
+
+.conflict__lines del {
+  background: #fbe9e7;
+  box-shadow: inset 3px 0 var(--editor-danger);
+}
+
+.page-editor__aside {
+  max-width: 780px;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  border: 1px solid var(--editor-line);
+  border-radius: 10px;
+  background: #fbfcf9;
+}
+
+.page-editor__aside h2 {
+  margin: 0 0 8px;
+  font: 700 12px 'DM Sans', sans-serif;
+  color: var(--editor-ink);
+}
+
+.page-editor__aside pre {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  font: 12px/1.6 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+@media (max-width: 900px) {
+  .conflict__versions {
+    grid-template-columns: 1fr;
+  }
+}

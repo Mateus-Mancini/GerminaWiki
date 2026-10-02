@@ -133,7 +133,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Tests (write first, must fail)
 
-- [ ] T021 [P] [US2] `frontend/tests/component/ConflictScreen.test.tsx`:
+- [X] T021 [P] [US2] `frontend/tests/component/ConflictScreen.test.tsx`:
   - shows both versions with the differences marked
   - **discard** loads the published version and removes the draft
   - **continue** loads the published version, keeps "Sua versão" in a side panel, and the next save uses the new etag
@@ -142,7 +142,7 @@ The codec is the data-integrity core: every save goes through it.
 
 ### Implementation
 
-- [ ] T022 [US2] `frontend/src/editor/ConflictScreen.tsx`: `diffLines` from `diff`, two columns at ≥ 900 px and unified below, the three actions, and the confirmation dialog (R6)
+- [X] T022 [US2] `frontend/src/editor/ConflictScreen.tsx`: `diffLines` from `diff`, two columns at ≥ 900 px and unified below, the three actions, and the confirmation dialog (R6)
 - [ ] T023 [US2] Wire `VersionConflictError` in `PageEditor.tsx`: fetch the published page and `getPublicProfile(updatedBy)`, move to `conflict`, and `report('editor.conflict')`
 
 ---

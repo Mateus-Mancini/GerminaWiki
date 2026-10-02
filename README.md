@@ -43,7 +43,8 @@ Pipeline design and one-time setup: [`docs/ci-cd.md`](https://github.com/Mateus-
 ## Integração com API
 
 O frontend tenta carregar pastas e páginas automaticamente ao abrir. Em desenvolvimento,
-usa `http://localhost:8080` por padrão; em produção, configure `VITE_API_BASE_URL` com a
+usa a API de produção (`frontend/.env.development`; para um backend local, defina
+`VITE_API_BASE_URL=http://localhost:8080` em `frontend/.env.development.local`); em produção, configure `VITE_API_BASE_URL` com a
 URL base do backend no ambiente de build. O Vite roda na porta `3000`, liberada pelo CORS
 local do backend. Sem a variável de produção, o frontend mostra um erro de configuração em
 vez de tentar acessar o `localhost` de cada visitante.

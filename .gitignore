@@ -9,3 +9,5 @@ coverage/
 # firebase
 firebase-debug.log
 .firebase/
+# Shared, non-secret dev settings (the public API URL); .local overrides stay ignored.
+!frontend/.env.development

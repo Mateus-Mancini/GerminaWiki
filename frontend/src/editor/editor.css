@@ -727,4 +727,17 @@
   .page-editor__sheet::after {
     animation: none;
   }
+
+  /*
+   * BlockNote's own core stylesheet (@blocknote/core Block.css) hard-codes 0.2s transitions on every
+   * block, with no reduced-motion guard of its own (FR-017). This file loads after it, so the same
+   * selectors win.
+   */
+  .page-editor .bn-block-outer,
+  .page-editor .bn-block-content,
+  .page-editor .bn-block-content::before,
+  .page-editor .bn-block-column,
+  .page-editor .bn-block-content[data-content-type="codeBlock"] > div > select {
+    transition: none;
+  }
 }

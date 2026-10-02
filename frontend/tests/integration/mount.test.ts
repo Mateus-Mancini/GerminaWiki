@@ -11,6 +11,7 @@ const api: EditorApi = {
   savePage: vi.fn(async () => ({ page: { ...page, version: 2 }, etag: '"p1-v2"' })),
   listPageCommentAnchors: vi.fn(async () => new Map()),
   getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
+    listPages: vi.fn(async () => []),
     searchPages: vi.fn(async () => []),
     requestImageUpload: vi.fn(),
     confirmImageUpload: vi.fn(),

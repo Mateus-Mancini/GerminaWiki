@@ -18,6 +18,7 @@ function api(over: Partial<EditorApi> = {}): EditorApi {
       .mockResolvedValue({ page: { ...page, version: 4 }, etag: '"p1-v4"' }),
     listPageCommentAnchors: vi.fn(async () => new Map()),
     getPublicProfile: vi.fn(),
+    listPages: vi.fn(async () => []),
     searchPages: vi.fn(async () => []),
     requestImageUpload: vi.fn(),
     confirmImageUpload: vi.fn(),

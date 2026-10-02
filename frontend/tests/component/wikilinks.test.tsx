@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { WIKILINK_TRIGGER, wikilinkItems } from '../../src/editor/wikilinks';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { WIKILINK_TRIGGER, findPages, wikilinkItems } from '../../src/editor/wikilinks';
 import type { RemotePage } from '../../src/services/backend-api';
 
 // FR-010: "[[" opens a page picker that stores [[slug]].
@@ -78,4 +78,30 @@ test('if the menu removed the trigger, the whole [[slug]] is inserted (never dou
 test('a failed search shows no items instead of breaking the editor', async () => {
   const search = vi.fn(async () => { throw new Error('offline'); });
   await expect(items(wikilinkItems(fakeEditor('[['), search), 'x')).resolves.toEqual([]);
+});
+
+describe('findPages', () => {
+  const fisica: RemotePage = { id: 'p3', title: 'Física moderna', slug: 'fisica-moderna', version: 1, folderId: 'f1', content: '' };
+  const quimica: RemotePage = { id: 'p4', title: 'Química', slug: 'quimica', version: 1, folderId: 'f1', content: 'Relação com a física.' };
+
+  test('matches part of a title, ignoring accents and case, before the API matches whole words', async () => {
+    const find = findPages(async () => [quimica, target, fisica], async () => []);
+    await expect(find('fís')).resolves.toEqual([fisica]);
+    await expect(find('OPTI')).resolves.toEqual([target]);
+  });
+
+  test('titles starting with the text come first, then content matches from the API, without repeats', async () => {
+    const mecanica: RemotePage = { ...fisica, id: 'p5', title: 'Mecânica e física', slug: 'mecanica' };
+    const find = findPages(async () => [mecanica, fisica], async () => [quimica, fisica]);
+    await expect(find('física')).resolves.toEqual([fisica, mecanica, quimica]);
+  });
+
+  test('loads the page list once, and again after a failure', async () => {
+    const list = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue([fisica]);
+    const find = findPages(list, async () => []);
+    await expect(find('fís')).resolves.toEqual([]);
+    await expect(find('fís')).resolves.toEqual([fisica]);
+    await find('mod');
+    expect(list).toHaveBeenCalledTimes(2);
+  });
 });

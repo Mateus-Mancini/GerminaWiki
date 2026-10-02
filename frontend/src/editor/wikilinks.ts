@@ -30,6 +30,26 @@ export function wikilinkItems(editor: Editor, search: (query: string) => Promise
   };
 }
 
+const fold = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+
+/**
+ * The picker's page search. The API's full-text search only matches whole words ("Fís" finds nothing
+ * until "Física" is typed), so pages whose title or slug contains the typed text, ignoring accents and
+ * case, come first; the API's matches in page content follow. The page list is loaded once per editor.
+ */
+export function findPages(listPages: () => Promise<RemotePage[]>, searchPages: (query: string) => Promise<RemotePage[]>) {
+  let all: Promise<RemotePage[]> | null = null;
+  return async (query: string): Promise<RemotePage[]> => {
+    all ??= listPages().catch(() => { all = null; return []; });
+    const needle = fold(query.trim());
+    const [pages, found] = await Promise.all([all, searchPages(query).catch(() => [] as RemotePage[])]);
+    const byTitle = pages.filter(page => fold(page.title).includes(needle) || fold(page.slug).includes(needle))
+      .sort((a, b) => Number(!fold(a.title).startsWith(needle)) - Number(!fold(b.title).startsWith(needle)));
+    const seen = new Set(byTitle.map(page => page.id));
+    return [...byTitle, ...found.filter(page => !seen.has(page.id))];
+  };
+}
+
 /** The menu removes the typed query; the trigger may or may not still be there, so complete either way. */
 function insertWikilink(editor: Editor, slug: string) {
   const { $from } = editor.prosemirrorState.selection;

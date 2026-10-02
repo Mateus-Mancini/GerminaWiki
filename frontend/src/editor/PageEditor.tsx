@@ -18,11 +18,11 @@ import { decode, syncSnapshots, type Converter, type Decoded } from './codec/dec
 import { encode } from './codec/encode';
 import { createImageUploader } from './images';
 import { report } from './report';
-import { WIKILINK_TRIGGER, wikilinkItems } from './wikilinks';
+import { WIKILINK_TRIGGER, findPages, wikilinkItems } from './wikilinks';
 
 export type EditorApi = Pick<
   typeof backend,
-  | 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages' | 'login'
+  | 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'listPages' | 'searchPages' | 'login'
   | 'requestImageUpload' | 'confirmImageUpload' | 'apiUrl'
 >;
 export type CloseResult = { saved: boolean; page?: RemotePage };
@@ -185,7 +185,7 @@ export function PageEditor({ pageId, currentUser, onClose, onSignedOut, api = ba
     return () => { cancelled = true; };
   }, [api, pageId]);
 
-  const getWikilinkItems = useMemo(() => wikilinkItems(editor as never, api.searchPages), [api, editor]);
+  const getWikilinkItems = useMemo(() => wikilinkItems(editor as never, findPages(api.listPages, api.searchPages)), [api, editor]);
 
   // Content change detection, debounced so large pages stay responsive while typing.
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

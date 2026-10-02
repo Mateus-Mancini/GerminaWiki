@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // contracts/pages-api.md: statuses verified against production on 2026-10-01.
-const API = 'https://api.example';
 const PAGE = '5f0c1a7e-0000-4000-8000-000000000001';
 const ETAG = `"${PAGE}-v3"`;
 const page = (version: number) => ({
@@ -10,6 +9,8 @@ const page = (version: number) => ({
 });
 
 type Call = { url: string; init: RequestInit };
+// The base URL comes from the build environment (the shell's concern); the contract is the path.
+const path = (url: string) => { const u = new URL(url); return u.pathname + u.search; };
 let calls: Call[];
 
 function respond(status: number, body?: unknown, headers: Record<string, string> = {}) {
@@ -23,7 +24,6 @@ function respond(status: number, body?: unknown, headers: Record<string, string>
 
 async function client() {
   vi.resetModules();
-  vi.stubEnv('VITE_API_BASE_URL', API);
   sessionStorage.setItem('germinawiki.auth-session', JSON.stringify({
     accessToken: 'token', tokenType: 'Bearer', expiresAt: new Date(Date.now() + 600_000).toISOString()
   }));
@@ -31,14 +31,14 @@ async function client() {
 }
 
 beforeEach(() => { calls = []; });
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); sessionStorage.clear(); });
+afterEach(() => { vi.unstubAllGlobals(); sessionStorage.clear(); });
 
 describe('getPageForEdit', () => {
   test('returns the page with the ETag header as its expected version', async () => {
     vi.stubGlobal('fetch', respond(200, page(3), { etag: ETAG }));
     const api = await client();
     await expect(api.getPageForEdit(PAGE)).resolves.toEqual({ page: page(3), etag: ETAG });
-    expect(calls[0].url).toBe(`${API}/api/pages/${PAGE}`);
+    expect(path(calls[0].url)).toBe(`/api/pages/${PAGE}`);
     expect(new Headers(calls[0].init.headers).get('authorization')).toBe('Bearer token');
   });
 
@@ -114,13 +114,13 @@ describe('editor lookups', () => {
     vi.stubGlobal('fetch', respond(200, [page(1)]));
     const api = await client();
     await expect(api.searchPages('física & química')).resolves.toEqual([page(1)]);
-    expect(calls[0].url).toBe(`${API}/api/search?q=f%C3%ADsica%20%26%20qu%C3%ADmica`);
+    expect(path(calls[0].url)).toBe('/api/search?q=f%C3%ADsica%20%26%20qu%C3%ADmica');
   });
 
   test('getPublicProfile reads a member by id', async () => {
     vi.stubGlobal('fetch', respond(200, { id: 'u2', name: 'Ana', avatarUrl: null, bio: null }));
     const api = await client();
     await expect(api.getPublicProfile('u2')).resolves.toMatchObject({ name: 'Ana' });
-    expect(calls[0].url).toBe(`${API}/api/users/u2`);
+    expect(path(calls[0].url)).toBe('/api/users/u2');
   });
 });

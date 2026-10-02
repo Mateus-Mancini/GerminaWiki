@@ -53,7 +53,7 @@ The codec is the data-integrity core: every save goes through it.
   - deleted segments drop their anchors
   - `rawMarkdown` text is written back exactly
   - pasted HTML containing `<script>`, `<style>`, `onclick` attributes and `<iframe>` encodes to Markdown containing none of them (FR-013, constitution IV)
-- [ ] T008 [P] `frontend/tests/contract/pages-api.test.ts` (stubbed `fetch`):
+- [X] T008 [P] `frontend/tests/contract/pages-api.test.ts` (stubbed `fetch`):
   - `getPageForEdit` returns `{ page, etag }` from the `ETag` header
   - `savePage` sends `If-Match` and returns the new etag
   - **412 and 409** → `VersionConflictError`
@@ -65,7 +65,7 @@ The codec is the data-integrity core: every save goes through it.
 - [X] T010 `frontend/src/editor/codec/decode.ts`: `marked` lexer segmentation, per-segment `tryParseMarkdownToBlocks`, faithful check by comparing rendered HTML (R3, R4). Data-model `Segment` fields: `anchor`, `source`, `blockIds`, `snapshot`, `faithful`. (T006)
 - [X] T011 `frontend/src/editor/codec/encode.ts`: the encode rule from data-model.md ("if a segment's blocks are present, in order, and deep-equal to `snapshot`, write `source` as it was"), anchors on their own line before each segment, blank-line separation, trailing newline preserved (T007)
 - [ ] T012 [P] `frontend/src/editor/blocks/rawMarkdown.tsx`: custom BlockNote block (monospaced, editable, labelled "Markdown avançado")
-- [ ] T013 [P] Extend `frontend/src/services/backend-api.ts`:
+- [X] T013 [P] Extend `frontend/src/services/backend-api.ts`:
   - `request()` can return headers
   - `getPageForEdit`, `savePage` (`title` 1–255 characters after trimming)
   - `VersionConflictError` with `currentVersion`

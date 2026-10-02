@@ -1,8 +1,7 @@
-import './styles.css';
-import './course.css';
-import './login.css';
-import './auth.css';
-import './workspace.css';
+import './theme/fonts.js';
+import './theme/tokens.css';
+import './theme/base.css';
+import './theme/notebook.css';
 import {
   ApiRequestError,
   clearAuthSession,
@@ -15,6 +14,10 @@ import {
   getPage,
   listComments,
   listFolders,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  movePage,
   listPages,
   login,
   registerAccount,
@@ -25,10 +28,23 @@ import {
   type OwnUserProfile,
   type RemotePage
 } from './services/backend-api.js';
+import { openPageEditor, preloadPageEditor, type EditorHandle } from './editor/index.js';
+import { clearDrafts } from './editor/drafts.js';
+import { renderArticle } from './reader/article.js';
+import { excerpt } from './reader/excerpt.js';
+import { installLinkPreviews } from './reader/preview.js';
+import { snapToRule } from './reader/rule.js';
+import { buildBinder, dividerById, dividerForPage, UNFILED, type Binder, type BinderPage, type Divider } from './shell/binder.js';
+import { icon } from './theme/icons.js';
+import { turnSheet } from './theme/motion.js';
 
 let query = '';
 let selectedFolder = 'all';
 let selectedPage: RemotePage | null = null;
+/** The subject (divider) whose contents sheet is shown; null on the home sheet and on pages. */
+let selectedSubject: string | null = null;
+/** The binder drawer, below 900px wide. */
+let binderOpen = false;
 let pages: RemotePage[] = [];
 let folders: FolderNode[] = [];
 let notice = '';
@@ -38,7 +54,12 @@ let authMessage = '';
 let authSuccessMessage = '';
 let authView: 'login' | 'register' = 'login';
 let currentUser: OwnUserProfile | null = null;
+/** Inline folder editing in the binder (admins): a new folder under `id` ('' = a new section), or a rename of `id`. */
+let folderEdit: { kind: 'new' | 'rename'; id: string } | null = null;
+let folderToDelete: { id: string; name: string } | null = null;
 let latestContribution: { parentPageId: string; page: RemotePage } | null = null;
+let editorHandle: EditorHandle | null = null;
+let stopRuling: (() => void) | null = null;
 let pageComments: RemoteComment[] = [];
 let commentsLoading = false;
 let commentsError = '';
@@ -49,7 +70,6 @@ let replyingToCommentId: string | null = null;
 const esc = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const flattenFolders = (nodes: FolderNode[]): FolderNode[] => nodes.flatMap(node => [node, ...flattenFolders(node.children ?? [])]);
 const allFolders = () => flattenFolders(folders);
-function folderForPage(page: RemotePage) { return allFolders().find(folder => folder.id === page.folderId); }
 function rootFolder(folderId: string | null) {
   let folder = allFolders().find(item => item.id === folderId);
   while (folder?.parentFolderId) folder = allFolders().find(item => item.id === folder!.parentFolderId);
@@ -63,9 +83,12 @@ function visiblePages() {
       (!normalizedQuery || `${page.title} ${page.content}`.toLocaleLowerCase('pt-BR').includes(normalizedQuery));
   });
 }
-function folderTree(nodes: FolderNode[], depth = 0): string {
-  return nodes.map(folder => `<div class="api-folder" style="--depth:${depth}"><span title="${esc(folder.name)}">${esc(folder.name)}</span>${pages.filter(page => page.folderId === folder.id).map(page => `<button class="api-page-link" data-page="${esc(page.id)}" data-active="${page.id === selectedPage?.id}">${esc(page.title)}</button>`).join('')}${folderTree(folder.children ?? [], depth + 1)}</div>`).join('');
+const longDate = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+function formatDate(value?: string) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? longDate.format(date) : '';
 }
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 function avatarMarkup() {
   const avatarUrl = currentUser?.avatarUrl?.trim();
   if (avatarUrl) {
@@ -79,6 +102,11 @@ function avatarMarkup() {
     }
   }
   return esc(currentUser?.name.trim().charAt(0).toLocaleUpperCase('pt-BR') || 'G');
+}
+/** The divider pulled out of the binder: the open page's subject, or the subject whose contents are shown. */
+function currentDivider(binder: Binder) {
+  if (selectedPage) return dividerForPage(binder, selectedPage.id);
+  return selectedSubject ? dividerById(binder, selectedSubject) : undefined;
 }
 function commentBlockIds(content: string) {
   return [...new Set([...content.matchAll(/<!--b:([0-9a-f-]{36})-->/gi)].map(match => match[1]))];
@@ -97,7 +125,7 @@ function isAdmin() {
   // This only controls which controls are shown. The API remains authoritative for permissions.
   return currentRole() === 'admin';
 }
-function formatDate(value: string) {
+function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
@@ -105,7 +133,7 @@ function commentPanel(blockId: string) {
   const comments = pageComments.filter(comment => comment.anchor.blockId === blockId);
   const expanded = openCommentBlocks.has(blockId);
   const count = comments.length;
-  const toggle = `<button class="comment-toggle" type="button" data-comment-toggle="${esc(blockId)}" aria-expanded="${expanded}">💬 ${expanded ? 'Ocultar' : 'Comentários'} (${count})</button>`;
+  const toggle = `<button class="comment-toggle" type="button" data-comment-toggle="${esc(blockId)}" aria-expanded="${expanded}">${icon('comment')}<span>${expanded ? 'Ocultar comentários' : count ? plural(count, 'comentário', 'comentários') : 'Comentar'}</span></button>`;
   if (!expanded) return `<div class="comment-toolbar">${toggle}</div>`;
 
   const items = comments.map(comment => {
@@ -114,97 +142,299 @@ function commentPanel(blockId: string) {
     const editor = editingCommentId === comment.id
       ? `<form class="comment-edit-form" data-comment-edit="${esc(comment.id)}"><label>Editar comentário<textarea name="text" maxlength="2000" required>${esc(comment.text)}</textarea></label><p class="comment-form-error" role="alert"></p><div class="comment-actions"><button class="secondary-button" type="button" data-cancel-comment-edit>Cancelar</button><button class="secondary-button comment-submit" type="submit">Salvar</button></div></form>`
       : `<p class="comment-text">${esc(comment.text).replace(/\r?\n/g, '<br>')}</p>`;
-    const replies = comment.adminReplies.map(reply => `<article class="admin-reply"><div class="comment-meta"><strong>Equipe GerminaWiki · Admin</strong><time>${esc(formatDate(reply.createdAt))}</time></div><p class="comment-text">${esc(reply.text).replace(/\r?\n/g, '<br>')}</p></article>`).join('');
+    const replies = comment.adminReplies.map(reply => `<article class="admin-reply"><div class="comment-meta"><strong>Equipe GerminaWiki · Admin</strong><time>${esc(formatDateTime(reply.createdAt))}</time></div><p class="comment-text">${esc(reply.text).replace(/\r?\n/g, '<br>')}</p></article>`).join('');
     const replyForm = isAdmin() && replyingToCommentId === comment.id
       ? `<form class="admin-reply-form" data-admin-reply="${esc(comment.id)}"><label>Resposta administrativa<textarea name="text" maxlength="2000" required></textarea></label><p class="comment-form-error" role="alert"></p><div class="comment-actions"><button class="secondary-button" type="button" data-cancel-admin-reply>Cancelar</button><button class="secondary-button comment-submit" type="submit">Responder</button></div></form>`
       : '';
-    return `<article class="comment-card"><div class="comment-meta"><strong>${ownsComment ? 'Você' : 'Membro'}</strong><time>${esc(formatDate(comment.createdAt))}</time></div>${editor}<div class="comment-card-actions">${canManage && editingCommentId !== comment.id ? `<button class="comment-icon-button" type="button" data-edit-comment="${esc(comment.id)}" aria-label="Editar comentário" title="Editar comentário"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span>Editar</span></button><button class="comment-icon-button comment-delete-button" type="button" data-delete-comment="${esc(comment.id)}" aria-label="Excluir comentário" title="Excluir comentário"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg><span>Excluir</span></button>` : ''}${isAdmin() && replyingToCommentId !== comment.id ? `<button type="button" data-reply-comment="${esc(comment.id)}">Responder como admin</button>` : ''}</div>${replies}${replyForm}</article>`;
+    return `<article class="comment-card"><div class="comment-meta"><strong>${ownsComment ? 'Você' : 'Membro'}</strong><time>${esc(formatDateTime(comment.createdAt))}</time></div>${editor}<div class="comment-card-actions">${canManage && editingCommentId !== comment.id ? `<button class="comment-icon-button" type="button" data-edit-comment="${esc(comment.id)}" aria-label="Editar comentário" title="Editar comentário"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span>Editar</span></button><button class="comment-icon-button comment-delete-button" type="button" data-delete-comment="${esc(comment.id)}" aria-label="Excluir comentário" title="Excluir comentário"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg><span>Excluir</span></button>` : ''}${isAdmin() && replyingToCommentId !== comment.id ? `<button type="button" data-reply-comment="${esc(comment.id)}">Responder como admin</button>` : ''}</div>${replies}${replyForm}</article>`;
   }).join('');
   return `<section class="comment-thread" aria-label="Comentários do bloco">${toggle}${commentsLoading ? '<p class="comment-state">Carregando comentários…</p>' : ''}${commentsError ? `<p class="comment-state comment-state-error" role="alert">${esc(commentsError)}</p>` : ''}${items || (!commentsLoading ? '<p class="comment-state">Ainda não há comentários neste trecho.</p>' : '')}<form class="comment-create-form" data-create-comment="${esc(blockId)}"><label>Adicionar comentário<textarea name="text" maxlength="2000" placeholder="Escreva uma dúvida ou observação…" required></textarea></label><p class="comment-form-error" role="alert"></p><div class="comment-actions"><span>Até 2.000 caracteres</span><button class="secondary-button comment-submit" type="submit">Comentar</button></div></form></section>`;
 }
 function render() {
-  const items = visiblePages();
-  const yearFolders = folders.map(folder => `<option value="${esc(folder.id)}" ${selectedFolder === folder.id ? 'selected' : ''}>${esc(folder.name)}</option>`).join('');
-  document.querySelector('#root')!.innerHTML = loginRequired ? renderLogin() : `<div class="app-shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Seu espaço de aprendizagem</small></span></div><div class="side-caption">WORKSPACE</div>${folders.length ? `<nav class="api-navigation" aria-label="Pastas e páginas">${folderTree(folders)}</nav>` : '<p class="empty-inline">O backend não retornou pastas.</p>'}<div class="sidebar-footer">Conteúdo do workspace</div></aside><main class="main"><header class="topbar"><div class="breadcrumbs"><button id="go-home" class="breadcrumb-button">← Início</button>${selectedPage ? `<span> / </span><strong>${esc(selectedPage.title)}</strong>` : ''}</div><div class="top-actions"><label class="search"><span>⌕</span><input id="search" placeholder="Buscar no workspace..." value="${esc(query)}" aria-label="Buscar no workspace"/><kbd>/</kbd></label><div class="account-actions"><button id="open-profile" class="account-profile" type="button" aria-label="Editar perfil"><span class="account-avatar">${avatarMarkup()}</span><span>${esc(currentUser?.name ?? 'Minha conta')}</span></button><button id="logout" class="logout-button" type="button">Sair</button></div></div></header>${selectedPage ? renderPage(selectedPage) : renderCatalog(items, yearFolders)}</main></div>${renderContributionDialog()}${renderProfileDialog()}${notice ? `<div class="toast" role="status" aria-live="polite"><span>${esc(notice)}</span><button id="dismiss-notice" type="button" aria-label="Fechar aviso">×</button></div>` : ''}`;
+  stopRuling?.();
+  stopRuling = null;
+  if (loginRequired) {
+    document.querySelector('#root')!.innerHTML = renderLogin();
+    bind();
+    return;
+  }
+  const binder = buildBinder(folders, pages);
+  const divider = currentDivider(binder);
+  const sheet = loading ? renderLoading() : selectedPage ? renderPage(selectedPage, binder) : divider ? renderSubject(divider) : renderCatalog(binder);
+  document.querySelector('#root')!.innerHTML = `<div class="notebook" data-binder-open="${binderOpen}">${renderBinder(binder, divider)}<div class="binder-scrim" data-close-binder></div><main class="desk" id="main">${renderTopbar()}${sheet}</main></div>${renderContributionDialog()}${renderProfileDialog()}${renderFolderDeleteDialog()}${renderNotice()}`;
   bind();
+  const article = document.querySelector<HTMLElement>('.article-body');
+  if (article) stopRuling = snapToRule(article);
+}
+function renderNotice() {
+  if (!notice) return '';
+  const failed = /^Não /.test(notice);
+  return `<div class="notice${failed ? ' notice--error' : ''}" role="status" aria-live="polite">${icon(failed ? 'close' : 'check')}<span>${esc(notice)}</span><button id="dismiss-notice" class="button button--quiet" type="button" aria-label="Fechar aviso">${icon('close')}</button></div>`;
+}
+function renderTopbar() {
+  return `<header class="topbar"><button id="binder-toggle" class="button button--quiet binder-toggle" type="button" aria-controls="binder" aria-expanded="${binderOpen}">${icon('binder')}<span>Matérias</span></button><span class="topbar__brand">GerminaWiki</span></header>`;
+}
+function renderBinder(binder: Binder, current: Divider | undefined) {
+  const admin = isAdmin();
+  const renaming = (id: string) => folderEdit?.kind === 'rename' && folderEdit.id === id;
+  const adding = (id: string) => folderEdit?.kind === 'new' && folderEdit.id === id;
+  const sections = binder.sections.map(section => {
+    const editable = admin && section.id !== UNFILED.id;
+    const tabs = section.dividers.map(divider => {
+      const own = divider.id === section.id;
+      const editableTab = editable && !own;
+      const open = divider.id === current?.id;
+      const groups = divider.groups.map(group => `<li class="tab__group" style="--depth:${group.depth}"${editable ? ` data-drop-folder="${esc(group.id)}"` : ''}>${renaming(group.id) ? inlineFolderInput(group.name) : `<span class="tab__group-name"${editable ? ` draggable="true" data-drag-folder="${esc(group.id)}"` : ''}>${esc(group.name)}</span>`}${editable ? rowTools(group.id, group.name) : ''}</li>${adding(group.id) ? `<li class="tab__group" style="--depth:${group.depth + 1}">${inlineFolderInput('')}</li>` : ''}${group.pages.map(binderPage).join('')}`).join('');
+      const newHere = !own && adding(divider.id) ? `<li class="tab__group" style="--depth:1">${inlineFolderInput('')}</li>` : '';
+      const list = open || newHere ? `<ul class="tab__pages">${open ? `${divider.pages.map(binderPage).join('')}${groups}${divider.pageCount || divider.groups.length ? '' : '<li class="tab__empty">Nenhuma página ainda</li>'}` : ''}${newHere}</ul>` : '';
+      const button = renaming(divider.id) && editableTab
+        ? `<div class="tab__button tab__button--editing">${inlineFolderInput(divider.name)}</div>`
+        : `<button class="tab__button" type="button" data-subject="${esc(divider.id)}" ${open && !selectedPage ? 'aria-current="true"' : ''} title="${esc(divider.name)}"${editableTab ? ` draggable="true" data-drag-folder="${esc(divider.id)}"` : ''}><span class="tab__name">${esc(divider.name)}</span><span class="tab__count">${divider.pageCount}</span></button>`;
+      return `<li class="tab${open ? ' tab--open' : ''}" data-colour="${divider.colour}"${editable ? ` data-drop-folder="${esc(divider.id)}"` : ''}>${button}${editableTab ? rowTools(divider.id, divider.name) : ''}${list}</li>`;
+    }).join('') + (editable && adding(section.id) ? `<li class="tab tab--new">${inlineFolderInput('')}</li>` : '');
+    const label = `<h2 class="binder__label" id="section-${esc(section.id)}"${editable && !renaming(section.id) ? ` draggable="true" data-drag-folder="${esc(section.id)}"` : ''}>${editable && renaming(section.id) ? inlineFolderInput(section.name) : esc(section.name)}</h2>`;
+    return `<section class="binder__section" aria-labelledby="section-${esc(section.id)}"><div class="binder__labelrow"${editable ? ` data-drop-folder="${esc(section.id)}"` : ''}>${label}${editable ? rowTools(section.id, section.name) : ''}</div>${tabs ? `<ul class="binder__tabs">${tabs}</ul>` : '<p class="binder__empty">Nenhuma matéria nesta seção</p>'}</section>`;
+  }).join('');
+  const nav = loading ? '<p class="binder__empty">Abrindo o caderno…</p>' : sections || '<p class="binder__empty">Nenhuma pasta foi criada ainda.</p>';
+  const addSection = loading || !admin ? '' : adding('') ? `<div class="binder__add binder__add--editing">${inlineFolderInput('')}</div>` : `<button class="binder__add" type="button" data-folder-new="" data-drop-root>${icon('plus')}Nova seção</button>`;
+  return `<aside class="binder" id="binder" aria-label="Caderno"><div class="binder__head"><button id="go-home" class="wordmark" type="button" data-home><span class="wordmark__name">GerminaWiki</span><span class="wordmark__tag">caderno da turma</span></button><label class="binder__search">${icon('search')}<span class="visually-hidden">Buscar páginas</span><input id="search" type="search" placeholder="Buscar páginas" value="${esc(query)}" autocomplete="off"/><kbd aria-hidden="true">/</kbd></label></div><nav class="binder__nav" aria-label="Matérias e páginas">${nav}${addSection}</nav><div class="binder__foot"><button id="open-profile" class="account" type="button" aria-label="Editar perfil"><span class="account__avatar">${avatarMarkup()}</span><span class="account__name">${esc(currentUser?.name ?? 'Minha conta')}</span></button><button id="logout" class="button button--quiet account__leave" type="button">${icon('leave')}<span>Sair</span></button></div></aside>`;
+}
+function inlineFolderInput(value: string) {
+  return `<input class="binder__inline" data-inline-folder value="${esc(value)}" maxlength="150" aria-label="${value ? 'Novo nome da pasta' : 'Nome da nova pasta'}" placeholder="${value ? '' : 'Sem título'}" autocomplete="off"/>`;
+}
+/** Notion-style row actions, shown on hover or focus: add inside, rename, delete. */
+function rowTools(id: string, name: string) {
+  return `<span class="row-tools"><button class="binder__tool" type="button" data-folder-new="${esc(id)}" aria-label="Nova pasta dentro de ${esc(name)}" title="Nova pasta dentro">${icon('plus')}</button><button class="binder__tool" type="button" data-folder-rename="${esc(id)}" aria-label="Renomear ${esc(name)}" title="Renomear">${icon('pen')}</button><button class="binder__tool" type="button" data-folder-delete="${esc(id)}" data-name="${esc(name)}" aria-label="Excluir ${esc(name)}" title="Excluir">${icon('trash')}</button></span>`;
+}
+function renderFolderDeleteDialog() {
+  return `<dialog id="folder-delete-dialog" class="sheet-dialog" aria-labelledby="folder-delete-title"><form method="dialog" id="folder-delete-form"><h2 id="folder-delete-title">Excluir “${esc(folderToDelete?.name ?? '')}”?</h2><p>A pasta precisa estar vazia: mova antes as páginas e subpastas que ainda estiverem nela. Esta ação não pode ser desfeita.</p><div class="dialog-actions"><button type="button" class="button" data-close-dialog="folder-delete-dialog">Cancelar</button><button type="submit" class="button button--danger" id="confirm-folder-delete">Excluir pasta</button></div></form></dialog>`;
+}
+/** Folder and page changes from the binder, then reload the tree. */
+async function folderAction(run: () => Promise<unknown>, done: string) {
+  try {
+    await run();
+    [folders, pages] = await Promise.all([listFolders(), listPages()]);
+    notice = done;
+  } catch (error) {
+    if (handleUnauthorized(error)) return;
+    notice = error instanceof ApiRequestError && error.status === 403
+      ? 'Não foi possível: só administradores podem organizar as pastas.'
+      : error instanceof ApiRequestError && error.status === 409
+        ? 'Não foi possível: já existe uma pasta com esse nome aqui, ou a pasta ainda tem conteúdo.'
+        : `Não foi possível alterar: ${error instanceof Error ? error.message : 'erro desconhecido'}.`;
+  }
+  render();
+}
+/** True when `target` is `id` itself or sits somewhere inside it (a folder can't move into itself). */
+function isWithin(target: string, id: string) {
+  const byId = new Map(allFolders().map(folder => [folder.id, folder]));
+  for (let at: string | null | undefined = target; at; at = byId.get(at)?.parentFolderId) if (at === id) return true;
+  return false;
+}
+function commitFolderEdit(input: HTMLInputElement) {
+  const edit = folderEdit;
+  if (!edit || input.dataset.done) return;
+  input.dataset.done = '1';
+  folderEdit = null;
+  const name = input.value.trim();
+  const before = edit.kind === 'rename' ? allFolders().find(folder => folder.id === edit.id)?.name : '';
+  if (!name || name === before) { render(); return; }
+  void folderAction(
+    () => edit.kind === 'new' ? createFolder(name, edit.id || null) : updateFolder(edit.id, { name }),
+    edit.kind === 'new' ? (edit.id ? 'Pasta criada.' : 'Seção criada.') : 'Pasta renomeada.'
+  );
+}
+function bindFolderTools() {
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-new]').forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    folderEdit = { kind: 'new', id: button.dataset.folderNew ?? '' };
+    render();
+  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-rename]').forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    folderEdit = { kind: 'rename', id: button.dataset.folderRename! };
+    render();
+  }));
+  const input = document.querySelector<HTMLInputElement>('[data-inline-folder]');
+  if (input) {
+    input.focus();
+    input.select();
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); commitFolderEdit(input); }
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); input.dataset.done = '1'; folderEdit = null; render(); }
+    });
+    input.addEventListener('blur', () => commitFolderEdit(input));
+  }
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-delete]').forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    folderToDelete = { id: button.dataset.folderDelete!, name: button.dataset.name ?? '' };
+    const dialog = document.querySelector<HTMLDialogElement>('#folder-delete-dialog');
+    dialog?.querySelector('h2')?.replaceChildren(`Excluir “${folderToDelete.name}”?`);
+    dialog?.showModal();
+  }));
+  document.querySelector<HTMLFormElement>('#folder-delete-form')?.addEventListener('submit', () => {
+    const target = folderToDelete;
+    folderToDelete = null;
+    if (!target) return;
+    void folderAction(async () => {
+      await deleteFolder(target.id);
+      if (selectedSubject === target.id) selectedSubject = null;
+    }, 'Pasta excluída.');
+  });
+
+  // Drag and drop: folders onto folders (or onto "Nova seção" to become a section), pages onto folders.
+  document.querySelectorAll<HTMLElement>('[data-drag-folder], [data-drag-page]').forEach(item => item.addEventListener('dragstart', event => {
+    event.stopPropagation();
+    const kind = item.dataset.dragFolder ? 'text/x-folder' : 'text/x-page';
+    event.dataTransfer?.setData(kind, item.dataset.dragFolder ?? item.dataset.dragPage!);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    document.querySelector('.binder')?.classList.add('is-dragging');
+  }));
+  document.addEventListener('dragend', () => {
+    document.querySelector('.binder')?.classList.remove('is-dragging');
+    document.querySelectorAll('.is-drop-target').forEach(node => node.classList.remove('is-drop-target'));
+  }, { once: true });
+  document.querySelectorAll<HTMLElement>('[data-drop-folder], [data-drop-root]').forEach(zone => {
+    const accepts = (event: DragEvent) => {
+      const types = [...(event.dataTransfer?.types ?? [])];
+      return types.includes('text/x-folder') || (types.includes('text/x-page') && zone.dataset.dropFolder !== undefined);
+    };
+    zone.addEventListener('dragover', event => {
+      if (!accepts(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.is-drop-target').forEach(node => node !== zone && node.classList.remove('is-drop-target'));
+      zone.classList.add('is-drop-target');
+    });
+    zone.addEventListener('dragleave', event => {
+      if (!(event.relatedTarget instanceof Node && zone.contains(event.relatedTarget))) zone.classList.remove('is-drop-target');
+    });
+    zone.addEventListener('drop', event => {
+      if (!accepts(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      zone.classList.remove('is-drop-target');
+      const target = zone.dataset.dropFolder ?? null;
+      const folderId = event.dataTransfer?.getData('text/x-folder');
+      const pageId = event.dataTransfer?.getData('text/x-page');
+      if (folderId) {
+        const folder = allFolders().find(item => item.id === folderId);
+        if (!folder || folder.parentFolderId === target) return;
+        if (target && isWithin(target, folderId)) { notice = 'Não foi possível: uma pasta não pode ir para dentro dela mesma.'; render(); return; }
+        void folderAction(() => updateFolder(folderId, { parentFolderId: target }), target ? 'Pasta movida.' : 'A pasta virou uma seção.');
+      } else if (pageId && target) {
+        if (pages.find(page => page.id === pageId)?.folderId === target) return;
+        void folderAction(() => movePage(pageId, target), 'Página movida.');
+      }
+    });
+  });
+}
+function binderPage(page: BinderPage) {
+  const here = page.id === selectedPage?.id;
+  return `<li><button class="tab__page" type="button" data-page="${esc(page.id)}" ${here ? 'aria-current="page"' : ''}${isAdmin() ? ` draggable="true" data-drag-page="${esc(page.id)}"` : ''} title="${esc(page.title)}">${esc(page.title)}</button></li>`;
 }
 function renderLogin() {
-  const isRegister = authView === 'register';
-  const form = isRegister
-    ? `<form id="register-form"><label for="register-name">Nome completo</label><input id="register-name" name="name" type="text" maxlength="150" autocomplete="name" placeholder="Como podemos te chamar?" required/><label for="register-email">E-mail</label><input id="register-email" name="email" type="email" maxlength="255" autocomplete="email" placeholder="nome@escola.com.br" required/><label for="register-password">Senha</label><input id="register-password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Pelo menos 8 caracteres" required/><label for="register-confirm-password">Confirmar senha</label><input id="register-confirm-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Digite a senha novamente" required/><div id="register-error" class="login-error" role="alert">${esc(authMessage)}</div><button class="primary-button login-submit" type="submit">Criar conta <span>→</span></button></form><p class="login-switch">Já tem uma conta? <button type="button" data-show-login>Entrar</button></p>`
-    : `<form id="login-form"><label for="login-email">E-mail escolar</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="nome@escola.com.br" required/><label for="login-password">Senha</label><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required/><div id="login-error" class="login-error" role="alert">${esc(authMessage)}</div>${authSuccessMessage ? `<div class="login-success" role="status">${esc(authSuccessMessage)}</div>` : ''}<button class="primary-button login-submit" type="submit">Entrar <span>→</span></button></form><p class="login-switch">Ainda não tem uma conta? <button type="button" data-show-register>Criar conta</button></p>`;
-  return `<main class="login-screen"><div class="login-brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Conhecimento compartilhado</small></span></div><section class="login-card"><div class="login-symbol">G</div><div class="eyebrow">${isRegister ? 'JUNTE-SE À COMUNIDADE' : 'ACESSO DO ALUNO'}</div><h1>${isRegister ? 'Crie sua conta' : 'Bem-vindo de volta'}</h1><p>${isRegister ? 'Preencha seus dados para começar a aprender e contribuir com a comunidade.' : 'Entre com sua conta escolar para acessar os conteúdos e contribuir com a comunidade.'}</p>${form}<small class="login-footnote">${isRegister ? 'Sua conta terá acesso de membro.' : 'Sua senha não fica salva neste navegador.'}</small></section><footer class="login-footer">Instituto Germinare · Ambiente de aprendizagem</footer></main>`;
+  const form = authView === 'register'
+    ? `<form id="register-form" class="cover__form"><div class="field"><label for="register-name">Nome completo</label><input id="register-name" name="name" type="text" maxlength="150" autocomplete="name" required/></div><div class="field"><label for="register-email">E-mail</label><input id="register-email" name="email" type="email" maxlength="255" autocomplete="email" placeholder="nome@escola.com.br" required/></div><div class="field"><label for="register-password">Senha</label><input id="register-password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Pelo menos 8 caracteres" required/></div><div class="field"><label for="register-confirm-password">Confirmar senha</label><input id="register-confirm-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required/></div><p id="register-error" class="form-error" role="alert">${esc(authMessage)}</p><button class="button button--primary cover__submit" type="submit">Criar conta</button></form><p class="cover__note">Já tem uma conta? <button class="link-button" type="button" data-show-login>Entrar</button></p>`
+    : `<form id="login-form" class="cover__form"><div class="field"><label for="login-email">E-mail</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="nome@escola.com.br" required/></div><div class="field"><label for="login-password">Senha</label><input id="login-password" name="password" type="password" autocomplete="current-password" required/></div><p id="login-error" class="form-error" role="alert">${esc(authMessage)}</p>${authSuccessMessage ? `<p class="form-success" role="status">${esc(authSuccessMessage)}</p>` : ''}<button class="button button--primary cover__submit" type="submit">Entrar</button></form><p class="cover__note">Ainda não tem uma conta? <button class="link-button" type="button" data-show-register>Criar conta</button></p>`;
+  return `<main class="cover"><div class="cover__tabs" aria-hidden="true">${[0, 1, 2, 3, 4].map(n => `<span data-colour="${n}"></span>`).join('')}</div><div class="cover__board"><section class="cover__label" aria-labelledby="cover-title"><h1 id="cover-title" class="cover__title">GerminaWiki</h1><p class="cover__subtitle">O caderno compartilhado da turma: anotações, resumos e dicas de cada matéria, escritos por quem faz as aulas.</p>${form}</section></div></main>`;
 }
-function renderCatalog(items: RemotePage[], folderOptions: string) {
-  if (loading) return '<section class="content"><p class="empty">Carregando conteúdo do backend…</p></section>';
-  return `<section class="content"><div class="welcome"><div><div class="eyebrow">BIBLIOTECA DE CONTEÚDOS</div><h1>Conhecimento<br/><em>do workspace.</em></h1><p>Matérias, páginas e materiais carregados do backend.</p></div><div class="welcome-art"><span>G</span><i>✳</i></div></div><div class="section-heading"><div><div class="eyebrow">PÁGINAS DO BACKEND</div><h2>Conteúdos <span>${items.length}</span></h2></div><select id="folder-select"><option value="all" ${selectedFolder === 'all' ? 'selected' : ''}>Todas as pastas</option>${folderOptions}</select></div><div class="subject-grid">${items.map((page, index) => `<button class="subject-card" data-page="${esc(page.id)}"><span class="subject-icon">${['✧','◉','⌘','∿','✳','◎'][index % 6]}</span><span class="subject-area">${esc(rootFolder(page.folderId)?.name ?? 'Sem pasta')}</span><strong>${esc(page.title)}</strong><span class="open-label">Abrir conteúdo →</span></button>`).join('') || '<div class="empty">Nenhuma página foi retornada pelo backend.</div>'}</div></section>`;
+function renderLoading() {
+  return '<article class="sheet sheet--loading" aria-busy="true"><div class="sheet__inner"><p class="sheet__state">Abrindo o caderno…</p></div></article>';
 }
-function markdownBody(content: string) {
-  return content.split(/\r?\n/).map(line => {
-    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
-    if (heading) return `<h${heading[1].length}>${esc(heading[2])}</h${heading[1].length}>`;
-    if (/^[-*]\s+/.test(line)) return `<li>${esc(line.replace(/^[-*]\s+/, ''))}</li>`;
-    if (!line.trim()) return '';
-    return `<p>${esc(line)}</p>`;
-  }).join('\n').replace(/(?:<li>.*?<\/li>\n?)+/gs, list => `<ul>${list}</ul>`);
+function entry(page: Pick<RemotePage, 'id' | 'title' | 'content'>, where = '') {
+  const text = excerpt(page.content, 140);
+  return `<li class="entry"><button class="entry__link" type="button" data-page="${esc(page.id)}"><span class="entry__title">${esc(page.title)}</span>${where ? `<span class="entry__where">${esc(where)}</span>` : ''}${text ? `<span class="entry__text">${esc(text)}</span>` : ''}</button></li>`;
 }
-function markdown(content: string) {
-  const result: string[] = [];
-  let lines: string[] = [];
-  let blockId: string | null = null;
-  const flush = () => {
-    const html = markdownBody(lines.join('\n'));
-    if (html.trim()) {
-      result.push(blockId
-        ? `<div class="commentable-block" id="content-block-${esc(blockId)}">${html}</div>${commentPanel(blockId)}`
-        : html);
-    }
-    lines = [];
-  };
-  for (const line of content.split(/\r?\n/)) {
-    const marker = /^\s*<!--b:([0-9a-f-]{36})-->\s*$/i.exec(line);
-    if (marker) {
-      flush();
-      blockId = marker[1];
-    } else {
-      lines.push(line);
-    }
+function renderCatalog(binder: Binder) {
+  const subjects = binder.sections.reduce((sum, section) => sum + section.dividers.length, 0);
+  const head = `<header class="sheet__head"><h1 class="headword">Sumário</h1><p class="meta">${plural(subjects, 'matéria', 'matérias')} · ${plural(pages.length, 'página', 'páginas')}</p></header>`;
+  const filter = binder.sections.length > 1 ? `<label class="index-filter"><span>Mostrar</span><select id="folder-select" class="input"><option value="all" ${selectedFolder === 'all' ? 'selected' : ''}>Todas as seções</option>${binder.sections.map(section => `<option value="${esc(section.id)}" ${selectedFolder === section.id ? 'selected' : ''}>${esc(section.name)}</option>`).join('')}</select></label>` : '';
+  if (query.trim()) {
+    const found = visiblePages();
+    const results = found.map(page => {
+      const divider = dividerForPage(binder, page.id);
+      return entry(page, divider ? `${divider.sectionName} › ${divider.name}` : '');
+    }).join('');
+    return `<article class="sheet"><div class="sheet__inner">${head}<section class="sheet__body" aria-live="polite"><h2 class="sheet__subhead">${plural(found.length, 'página encontrada', 'páginas encontradas')} para “${esc(query.trim())}”</h2>${results ? `<ol class="entries">${results}</ol>` : '<p class="sheet__state">Nenhuma página fala disso ainda. Tente outra palavra.</p>'}</section></div></article>`;
   }
-  flush();
-  return result.join('\n');
+  const sections = binder.sections.filter(section => selectedFolder === 'all' || section.id === selectedFolder).map(section => `<section class="index-section"><h2>${esc(section.name)}</h2>${section.dividers.length ? `<ol class="index">${section.dividers.map(divider => `<li class="index__item" data-colour="${divider.colour}"><button class="index__link" type="button" data-subject="${esc(divider.id)}"><span class="index__name">${esc(divider.name)}</span><span class="index__leader" aria-hidden="true"></span><span class="index__count">${plural(divider.pageCount, 'página', 'páginas')}</span></button></li>`).join('')}</ol>` : '<p class="sheet__state">Nenhuma matéria nesta seção ainda.</p>'}</section>`).join('');
+  return `<article class="sheet sheet--index"><div class="sheet__inner">${head}<div class="sheet__body">${filter}${sections || '<p class="sheet__state">O caderno ainda está vazio. Quando houver pastas e páginas, elas aparecem aqui.</p>'}</div></div></article>`;
 }
-function contentSections(page: RemotePage) {
-  const headings = [...page.content.matchAll(/^##\s+(.+)$/gm)];
-  if (!headings.length) return `<section class="remote-content"><div class="topic-kicker">CONTEÚDO DO BACKEND</div>${markdown(page.content) || '<p class="empty-inline">Esta página ainda não tem conteúdo.</p>'}</section>`;
-  const blocks = page.content.split(/(?=^##\s+)/m).filter(Boolean);
-  return blocks.map((block, index) => {
-    const title = /^##\s+(.+)$/m.exec(block)?.[1] ?? page.title;
-    return `<section class="topic-section" id="topic-${index}"><div class="topic-kicker">${index ? `SUBTÓPICO ${String(index).padStart(2, '0')}` : 'CONTEÚDO'}</div><h2>${esc(title)}</h2>${markdown(block.replace(/^##\s+.+\n?/, ''))}</section>`;
-  }).join('');
+function renderSubject(divider: Divider) {
+  const entries = `${divider.pages.map(page => entry(page)).join('')}${divider.groups.map(group => `<li class="entries__group"><h2 class="sheet__subhead">${esc(group.name)}</h2>${group.pages.length ? `<ol class="entries">${group.pages.map(page => entry(page)).join('')}</ol>` : '<p class="sheet__state">Nenhuma página aqui ainda.</p>'}</li>`).join('')}`;
+  return `<article class="sheet" data-colour="${divider.colour}"><div class="sheet__inner"><nav class="crumbs" aria-label="Você está em"><button type="button" data-home>Sumário</button><span aria-hidden="true">›</span><span>${esc(divider.sectionName)}</span></nav><header class="sheet__head"><h1 class="headword">${esc(divider.name)}</h1><p class="meta">${esc(divider.sectionName)} · ${plural(divider.pageCount, 'página', 'páginas')}</p></header><div class="sheet__body">${divider.pageCount ? `<ol class="entries">${entries}</ol>` : '<p class="sheet__state">Esta matéria ainda não tem páginas.</p>'}</div></div></article>`;
 }
-function renderPage(page: RemotePage) {
-  const sections = contentSections(page);
-  const headings = [...page.content.matchAll(/^##\s+(.+)$/gm)];
-  const blockIds = commentBlockIds(page.content);
-  const folder = folderForPage(page);
+function renderPage(page: RemotePage, binder: Binder) {
+  const divider = dividerForPage(binder, page.id);
+  const article = renderArticle(page.content, pages, { omitTitle: page.title, wrapBlock: (blockId, html) => `<div class="commentable-block" id="content-block-${esc(blockId)}">${html}</div>${commentPanel(blockId)}` });
+  const headings = article.headings.filter(heading => heading.level <= 3);
+  const updated = formatDate(page.updatedAt ?? page.createdAt);
+  const meta = [divider?.name, updated && `Atualizada em ${updated}`].filter(Boolean).join(' · ');
   const published = latestContribution?.parentPageId === page.id
-    ? `<article class="published-contribution" role="status"><div class="topic-kicker">CONTEÚDO PUBLICADO</div><h3>${esc(latestContribution.page.title)}</h3><button class="published-link" data-page="${esc(latestContribution.page.id)}" type="button">Abrir página publicada →</button></article>`
+    ? `<p class="sheet__published" role="status">Página publicada: <button class="link-button" data-page="${esc(latestContribution.page.id)}" type="button">${esc(latestContribution.page.title)}</button></p>`
     : '';
-  return `<article class="course-page"><div class="course-heading"><div class="eyebrow">${esc(rootFolder(folder?.id ?? null)?.name ?? folder?.name ?? 'WORKSPACE')} · PÁGINA DO BACKEND</div><h1>${esc(page.title)}</h1><p class="course-summary">Conteúdo carregado diretamente do workspace.</p><button id="go-home-page" class="breadcrumb-button">← Voltar aos conteúdos</button></div><div class="course-layout"><nav class="topic-nav"><div class="panel-title">NESTA PÁGINA</div>${headings.map((heading, index) => `<a href="#topic-${index}">${String(index + 1).padStart(2, '0')} · ${esc(heading[1])}</a>`).join('') || '<span class="empty-inline">Sem subtópicos cadastrados.</span>'}<a href="#contribute">＋ Contribuir com conteúdo</a>${blockIds.length ? `<a href="#comments">💬 Comentários (${pageComments.length})</a>` : ''}</nav><div class="course-content">${sections}${blockIds.length ? `<section id="comments" class="comments-summary"><div class="topic-kicker">DISCUSSÃO</div><p>${pageComments.length ? `${pageComments.length} comentário(s) nesta página, distribuídos nos trechos comentáveis.` : 'Abra “Comentários” em um trecho para iniciar a conversa.'}</p></section>` : '<section class="comments-unavailable"><div class="topic-kicker">DISCUSSÃO</div><p>Esta página ainda não tem blocos preparados para comentários.</p></section>'}<section id="contribute" class="contributions-list"><div class="topic-kicker">CONTRIBUIÇÃO</div><h2>Adicionar conteúdo</h2><p>Sua contribuição será publicada como uma nova página na pasta desta matéria.</p>${published}${page.folderId ? '<button id="open-contribution" class="secondary-button">＋ Contribuir com esta matéria</button>' : '<p class="empty-inline">Esta página não está associada a uma pasta, então não é possível determinar onde salvar uma contribuição.</p>'}</section></div></div></article>`;
+  const crumbs = `<nav class="crumbs" aria-label="Você está em"><button type="button" data-home>Sumário</button>${divider ? `<span aria-hidden="true">›</span><span>${esc(divider.sectionName)}</span><span aria-hidden="true">›</span><button type="button" data-subject="${esc(divider.id)}">${esc(divider.name)}</button>` : ''}</nav>`;
+  const sections = headings.length > 1 ? `<nav class="sections" aria-labelledby="sections-title"><h2 id="sections-title">Nesta página</h2><ol>${headings.map(heading => `<li data-level="${heading.level}"><a href="#${heading.id}">${esc(heading.text)}</a></li>`).join('')}</ol></nav>` : '';
+  const contribute = page.folderId && isAdmin()
+    ? `<footer class="sheet__foot"><p>Falta algo nesta matéria?</p><button id="open-contribution" class="button" type="button">${icon('plus')}Escrever uma página nova${divider ? ` em ${esc(divider.name)}` : ''}</button>${published}</footer>`
+    : '';
+  return `<article class="sheet sheet--page" data-colour="${divider?.colour ?? 0}"><div class="sheet__inner">${crumbs}<header class="sheet__head"><h1 class="headword">${esc(page.title)}</h1>${meta ? `<p class="meta">${esc(meta)}</p>` : ''}${isAdmin() ? `<div class="sheet__actions"><button id="edit-page" class="button pen-button" type="button">${icon('pen')}Editar</button></div>` : ''}</header><div class="sheet__layout">${sections}<section class="article-body" aria-label="Conteúdo">${article.html || '<p class="sheet__state">Esta página ainda não tem conteúdo. Que tal escrever o começo?</p>'}</section></div>${contribute}</div></article>`;
 }
 function renderContributionDialog() {
-  return `<dialog id="contribution-dialog" class="contribution-dialog"><form id="contribution-form"><button type="button" class="close-button" data-close-dialog="contribution-dialog">×</button><h2>Contribuir com conteúdo</h2><p>O conteúdo será publicado como uma nova página na pasta desta matéria.</p><label>Título<input name="title" maxlength="255" required></label><label>Conteúdo<textarea name="body" rows="7" required></textarea></label><div id="contribution-error" class="contribution-error" role="alert" aria-live="polite"></div><div class="dialog-actions"><button type="button" class="secondary-button" data-close-dialog="contribution-dialog">Cancelar</button><button type="submit" class="primary-button">Publicar</button></div></form></dialog>`;
+  return `<dialog id="contribution-dialog" class="sheet-dialog" aria-labelledby="contribution-title"><form id="contribution-form"><button type="button" class="button button--quiet dialog-close" data-close-dialog="contribution-dialog" aria-label="Fechar">${icon('close')}</button><h2 id="contribution-title">Escrever uma página nova</h2><p>Ela será publicada na mesma matéria desta página, e você poderá editá-la depois.</p><div class="field"><label for="contribution-title-input">Título</label><input id="contribution-title-input" name="title" maxlength="255" required/></div><div class="field"><label for="contribution-body">Primeiro parágrafo</label><textarea id="contribution-body" name="body" rows="5" required></textarea></div><p id="contribution-error" class="form-error" role="alert" aria-live="polite"></p><div class="dialog-actions"><button type="button" class="button" data-close-dialog="contribution-dialog">Cancelar</button><button type="submit" class="button button--primary">Publicar</button></div></form></dialog>`;
 }
 function renderProfileDialog() {
   if (!currentUser) return '';
-  return `<dialog id="profile-dialog" class="profile-dialog"><form id="profile-form"><button type="button" class="close-button" data-close-dialog="profile-dialog" aria-label="Fechar">×</button><div class="eyebrow">MINHA CONTA</div><h2>Meu perfil</h2><p class="profile-email">${esc(currentUser.email)}</p><label for="profile-name">Nome</label><input id="profile-name" name="name" value="${esc(currentUser.name)}" maxlength="150" autocomplete="name" required/><label for="profile-avatar">Foto de perfil</label><input id="profile-avatar" name="avatarUrl" type="url" value="${esc(currentUser.avatarUrl ?? '')}" placeholder="https://..."/><label for="profile-bio">Sobre mim</label><textarea id="profile-bio" name="bio" rows="4">${esc(currentUser.bio ?? '')}</textarea><div id="profile-error" class="profile-error" role="alert"></div><div class="dialog-actions"><button type="button" class="secondary-button" data-close-dialog="profile-dialog">Cancelar</button><button type="submit" class="primary-button">Salvar perfil</button></div></form></dialog>`;
+  return `<dialog id="profile-dialog" class="sheet-dialog" aria-labelledby="profile-title"><form id="profile-form"><button type="button" class="button button--quiet dialog-close" data-close-dialog="profile-dialog" aria-label="Fechar">${icon('close')}</button><h2 id="profile-title">Meu perfil</h2><p class="profile-email">${esc(currentUser.email)}</p><div class="field"><label for="profile-name">Nome</label><input id="profile-name" name="name" value="${esc(currentUser.name)}" maxlength="150" autocomplete="name" required/></div><div class="field"><label for="profile-avatar">Foto de perfil (endereço da imagem)</label><input id="profile-avatar" name="avatarUrl" type="url" value="${esc(currentUser.avatarUrl ?? '')}" placeholder="https://..."/></div><div class="field"><label for="profile-bio">Sobre mim</label><textarea id="profile-bio" name="bio" rows="4">${esc(currentUser.bio ?? '')}</textarea></div><p id="profile-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button" data-close-dialog="profile-dialog">Cancelar</button><button type="submit" class="button button--primary">Salvar perfil</button></div></form></dialog>`;
+}
+/** Moves to another sheet (home, a subject, a page) with the page turn. */
+function navigate(update: () => void) {
+  turnSheet(() => {
+    update();
+    binderOpen = false;
+    notice = '';
+    render();
+    window.scrollTo({ top: 0 });
+  });
+}
+async function goHome() {
+  if (!(await leaveEditor())) return;
+  navigate(() => { selectedPage = null; selectedSubject = null; });
+}
+async function openSubject(id: string) {
+  if (!(await leaveEditor())) return;
+  navigate(() => { selectedPage = null; selectedSubject = id; });
+}
+function setBinderOpen(open: boolean) {
+  binderOpen = open;
+  document.querySelector('.notebook')?.setAttribute('data-binder-open', String(open));
+  document.querySelector('#binder-toggle')?.setAttribute('aria-expanded', String(open));
+  // Below 900px the binder is a modal drawer over the sheet (notebook.css); the sheet behind the
+  // scrim must not be reachable by keyboard or a screen reader while the drawer is open.
+  document.querySelector('#main')?.toggleAttribute('inert', open);
+  if (open) document.querySelector<HTMLElement>('#binder .tab--open .tab__button, #binder .tab__button, #search')?.focus();
+  else document.querySelector<HTMLElement>('#binder-toggle')?.focus();
 }
 function bind() {
-  document.querySelector<HTMLButtonElement>('#go-home')?.addEventListener('click', () => { selectedPage = null; render(); });
-  document.querySelector<HTMLButtonElement>('#go-home-page')?.addEventListener('click', () => { selectedPage = null; render(); });
+  bindFolderTools();
+  document.querySelectorAll<HTMLElement>('[data-home]').forEach(button => button.addEventListener('click', () => { void goHome(); }));
+  document.querySelectorAll<HTMLElement>('[data-subject]').forEach(button => button.addEventListener('click', () => { void openSubject(button.dataset.subject!); }));
+  document.querySelector<HTMLButtonElement>('#binder-toggle')?.addEventListener('click', () => setBinderOpen(!binderOpen));
+  document.querySelector<HTMLElement>('[data-close-binder]')?.addEventListener('click', () => setBinderOpen(false));
   document.querySelector<HTMLSelectElement>('#folder-select')?.addEventListener('change', event => { selectedFolder = (event.target as HTMLSelectElement).value; render(); });
-  document.querySelector<HTMLInputElement>('#search')?.addEventListener('input', event => { query = (event.target as HTMLInputElement).value; const position = query.length; render(); const input = document.querySelector<HTMLInputElement>('#search')!; input.focus(); input.setSelectionRange(position, position); });
-  document.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(button => button.addEventListener('click', () => { void openPage(button.dataset.page!); }));
+  document.querySelector<HTMLInputElement>('#search')?.addEventListener('input', event => {
+    query = (event.target as HTMLInputElement).value;
+    // Results are listed on the home sheet (research R8), so searching from a page goes back there.
+    if (query.trim() && (selectedPage || selectedSubject) && !editorHandle) { selectedPage = null; selectedSubject = null; }
+    const position = query.length;
+    render();
+    const input = document.querySelector<HTMLInputElement>('#search')!;
+    input.focus();
+    input.setSelectionRange(position, position);
+  });
+  document.querySelectorAll<HTMLButtonElement>('button[data-page], a.wikilink[data-page]').forEach(button => button.addEventListener('click', event => { event.preventDefault(); void openPage(button.dataset.page!); }));
   document.querySelector('#open-contribution')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#contribution-dialog')?.showModal());
   document.querySelectorAll<HTMLElement>('[data-close-dialog]').forEach(button => button.addEventListener('click', () => document.querySelector<HTMLDialogElement>(`#${button.dataset.closeDialog}`)?.close()));
   document.querySelector<HTMLFormElement>('#contribution-form')?.addEventListener('submit', event => { void contribute(event); });
@@ -228,8 +458,45 @@ function bind() {
   document.querySelector<HTMLButtonElement>('[data-show-login]')?.addEventListener('click', () => { authView = 'login'; authMessage = ''; render(); });
   document.querySelector<HTMLButtonElement>('#open-profile')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#profile-dialog')?.showModal());
   document.querySelector<HTMLFormElement>('#profile-form')?.addEventListener('submit', event => { void saveProfile(event); });
-  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', logout);
+  document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', () => { void logout(); });
   document.querySelector<HTMLButtonElement>('#dismiss-notice')?.addEventListener('click', () => { notice = ''; render(); });
+  document.querySelector<HTMLButtonElement>('#edit-page')?.addEventListener('click', () => { void editPage(); });
+  // Fetch the editor in the background while a page is being read (specs/002-page-editor research R10).
+  if (selectedPage) window.requestIdleCallback?.(() => preloadPageEditor());
+}
+/** The page editor (editor-ui, specs/002-page-editor/contracts/editor-mount.md). */
+async function editPage() {
+  const page = selectedPage;
+  if (!page || !currentUser || editorHandle || !isAdmin()) return;
+  const button = document.querySelector<HTMLButtonElement>('#edit-page');
+  if (button) button.disabled = true;
+  try {
+    editorHandle = await openPageEditor({
+      pageId: page.id,
+      host: document.querySelector<HTMLElement>('#editor-root')!,
+      currentUser: { id: currentUser.id, name: currentUser.name },
+      onClose: result => {
+        editorHandle = null;
+        if (result.saved && result.page) {
+          const saved = result.page;
+          selectedPage = saved;
+          pages = pages.map(item => item.id === saved.id ? saved : item);
+          notice = 'Página salva.';
+        }
+        render();
+        document.querySelector<HTMLButtonElement>('#edit-page')?.focus();
+      },
+      onSignedOut: () => { editorHandle = null; expireSession(); render(); }
+    });
+  } catch {
+    editorHandle = null;
+    notice = 'Não foi possível abrir o editor. Tente novamente.';
+    render();
+  }
+}
+/** Asks the editor to close first (it confirms unsaved changes); false means the member stayed. */
+async function leaveEditor() {
+  return editorHandle ? editorHandle.requestClose() : true;
 }
 function expireSession() {
   clearAuthSession();
@@ -239,6 +506,8 @@ function expireSession() {
   loginRequired = true;
   authView = 'login';
   selectedPage = null;
+  selectedSubject = null;
+  binderOpen = false;
   authMessage = 'Sua sessão expirou. Entre novamente para continuar.';
 }
 function handleUnauthorized(error: unknown) {
@@ -272,7 +541,7 @@ async function signIn(event: SubmitEvent) {
         : error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.';
     }
   } finally {
-    if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Entrar <span>→</span>'; }
+    if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.textContent = 'Entrar'; }
   }
 }
 async function signUp(event: SubmitEvent) {
@@ -313,12 +582,17 @@ async function signUp(event: SubmitEvent) {
     if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Criar conta <span>→</span>'; }
   }
 }
-function logout() {
+async function logout() {
+  if (!(await leaveEditor())) return;
+  // Unsaved drafts stay on the device; remove them so the next person on a shared computer can't read them.
+  if (currentUser) clearDrafts(currentUser.id);
   clearAuthSession();
   currentUser = null;
   folders = [];
   pages = [];
   selectedPage = null;
+  selectedSubject = null;
+  binderOpen = false;
   latestContribution = null;
   pageComments = [];
   commentsLoading = false;
@@ -334,18 +608,20 @@ function logout() {
   render();
 }
 async function openPage(id: string) {
+  if (!(await leaveEditor())) return;
   try {
-    selectedPage = await getPage(id);
-    notice = '';
-    pageComments = [];
-    commentsError = '';
-    openCommentBlocks = new Set();
-    editingCommentId = null;
-    replyingToCommentId = null;
-    commentsLoading = commentBlockIds(selectedPage.content).length > 0;
-    render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (commentsLoading) void loadPageComments(selectedPage.id);
+    const page = await getPage(id);
+    navigate(() => {
+      selectedPage = page;
+      selectedSubject = null;
+      pageComments = [];
+      commentsError = '';
+      openCommentBlocks = new Set();
+      editingCommentId = null;
+      replyingToCommentId = null;
+      commentsLoading = commentBlockIds(page.content).length > 0;
+    });
+    if (commentsLoading) void loadPageComments(page.id);
   }
   catch (error) {
     if (!handleUnauthorized(error)) notice = error instanceof Error ? error.message : 'Não foi possível abrir a página.';
@@ -487,7 +763,7 @@ async function contribute(event: SubmitEvent) {
   if (errorElement) errorElement.textContent = '';
   if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Publicando…'; }
   try {
-    const created = await createContributionPage(parentPage.folderId, title, `# ${title}\n\n${body}`);
+    const created = await createContributionPage(parentPage.folderId, title, `# ${title}\n\n<!--b:${crypto.randomUUID()}-->\n${body}`);
     pages = [created, ...pages.filter(page => page.id !== created.id)];
     latestContribution = { parentPageId: parentPage.id, page: created };
     document.querySelector<HTMLDialogElement>('#contribution-dialog')?.close();
@@ -540,6 +816,18 @@ async function loadWorkspace() {
   }
   finally { loading = false; render(); }
 }
-document.addEventListener('keydown', event => { if (event.key === '/' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); } });
+// "/" jumps to search, except while typing: inputs, text areas and the page editor (contenteditable), whose slash menu needs it.
+const isTyping = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+document.addEventListener('keydown', event => {
+  if (event.key === '/' && !isTyping(event.target)) { event.preventDefault(); document.querySelector<HTMLInputElement>('#search')?.focus(); }
+  if (event.key === 'Escape' && binderOpen && !document.querySelector('dialog[open]')) setBinderOpen(false);
+});
+// Previews of internal links, from the pages already loaded (specs/003-notebook-design FR-016).
+installLinkPreviews(document.body, id => {
+  const page = pages.find(item => item.id === id);
+  if (!page) return undefined;
+  const divider = dividerForPage(buildBinder(folders, pages), id);
+  return { title: page.title, content: page.content, subject: divider?.name, colour: divider?.colour };
+});
 render();
 if (!loginRequired) void loadWorkspace();

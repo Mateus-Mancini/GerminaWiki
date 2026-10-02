@@ -1,8 +1,0 @@
-.login-screen{background-color:#f6f7f2;background-image:url('/wiki-globe.svg'),radial-gradient(circle at 13% 18%,#e5eee3 0,transparent 30%),radial-gradient(circle at 88% 82%,#e9efdf 0,transparent 28%);background-position:right 9vw center,center,center;background-repeat:no-repeat;background-size:min(56vw,620px),auto,auto}
-.login-screen{overflow:auto}
-.login-switch{margin:16px 0 0!important;text-align:center;color:#74847b;font-size:11px!important}
-.login-switch button{border:0;background:transparent;padding:3px;color:#286448;font:inherit;font-weight:800;cursor:pointer}
-.login-switch button:hover,.login-switch button:focus-visible{outline:0;text-decoration:underline}
-.login-success{margin:0 0 8px;color:#286448;font-size:11px;line-height:1.5}
-.login-card form button:disabled{cursor:wait;opacity:.65}
-@media(max-width:700px){.login-screen{background-position:center 20px,center,center;background-size:min(78vw,340px),auto,auto}}

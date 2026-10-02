@@ -1,0 +1,225 @@
+/*
+ * The article on the sheet (reader/article.ts). Every line advances by one rule and every block by whole
+ * rules, so the text stays on the ruling (specs/003-notebook-design FR-007, research R2); reader/rule.ts
+ * pads the blocks whose height CSS can't know.
+ */
+
+.article-body {
+  min-width: 0;
+  color: var(--ink);
+  font: 400 var(--text-body) / var(--rule) var(--font-serif);
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.article-body :is(p, ul, ol, blockquote, pre, figure, .article-table, hr, dl) {
+  margin: 0 0 var(--rule);
+}
+
+.article-body .article-block > :last-child {
+  margin-bottom: var(--rule);
+}
+
+.article-body :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: calc(var(--rule) * 2);
+  margin: var(--rule) 0 0;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: var(--rule);
+  text-wrap: balance;
+}
+
+.article-body h1 {
+  font-size: 2rem;
+  line-height: calc(var(--rule) * 2);
+  letter-spacing: -0.01em;
+}
+
+.article-body h2 {
+  font-size: var(--text-h2);
+  letter-spacing: -0.01em;
+}
+
+.article-body h3 {
+  font-size: var(--text-h3);
+}
+
+.article-body :is(h4, h5, h6) {
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.article-body > :first-child,
+.article-body > .article-block:first-child > :first-child {
+  margin-top: 0;
+}
+
+.article-body strong {
+  font-weight: 700;
+}
+
+.article-body :is(ul, ol) {
+  padding-left: 1.6em;
+}
+
+.article-body li::marker {
+  color: var(--ink-soft);
+}
+
+.article-body li > :is(ul, ol) {
+  margin-bottom: 0;
+}
+
+.article-body li > p {
+  margin-bottom: 0;
+}
+
+/* Checklists (editor checklist blocks): a read-only tick, not a plain bullet. */
+.article-body .article-tasks {
+  padding-left: 0;
+  list-style: none;
+}
+
+.article-body .article-task {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+
+.article-body .article-task input[type="checkbox"] {
+  position: relative;
+  top: 0.1em;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  accent-color: var(--ink);
+  cursor: default;
+}
+
+/* Links: blue ballpoint underline; pages that don't exist yet are red and dashed. */
+.article-body a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-underline-offset: 4px;
+}
+
+.article-body a:hover {
+  text-decoration-color: currentColor;
+}
+
+.article-body a.wikilink--missing {
+  color: var(--link-missing);
+  text-decoration-style: dashed;
+  text-decoration-color: color-mix(in srgb, var(--link-missing) 60%, transparent);
+  cursor: help;
+}
+
+/* Quotes: set in from the text, with a hanging mark. */
+.article-body blockquote {
+  position: relative;
+  padding: 0 0 0 2em;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.article-body blockquote::before {
+  content: "\201C";
+  position: absolute;
+  top: 0;
+  left: 0.15em;
+  color: var(--margin-color);
+  font: 400 2.6em / 1 var(--font-serif);
+}
+
+.article-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Code: a typed slip on the handwritten page. */
+.article-body code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-small);
+  background: var(--paper-shade);
+  font: 400 0.84em / 1 var(--font-mono);
+}
+
+.article-body pre {
+  overflow-x: auto;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--rule-color);
+  border-radius: var(--radius);
+  background: var(--paper-shade);
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.article-body pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.82em;
+  line-height: inherit;
+}
+
+/* Images and figures sit on the paper; rule.ts pads them to whole rules. */
+.article-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-small);
+  box-shadow: var(--shadow-sheet);
+}
+
+.article-body figure img {
+  margin-bottom: var(--space-2);
+}
+
+.article-body figcaption {
+  color: var(--ink-soft);
+  font: italic 400 0.9em / 1.5 var(--font-serif);
+}
+
+/* Tables: ruled like the page; wide ones scroll on their own. */
+.article-table {
+  overflow-x: auto;
+}
+
+.article-body table {
+  min-width: 50%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.article-body :is(th, td) {
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--rule-color);
+  text-align: left;
+  vertical-align: top;
+  line-height: calc(var(--rule) - 1px);
+}
+
+.article-body th {
+  border-bottom: 1.5px solid var(--ink-faint);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.82em;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.article-body hr {
+  height: 0;
+  border: 0;
+  border-top: 1.5px solid var(--ink-faint);
+  margin-top: calc(var(--rule) / 2);
+  margin-bottom: calc(var(--rule) / 2);
+}
+
+/* Anything the shell or comments add under a block keeps to the measure. */
+.article-block {
+  position: relative;
+}

@@ -1,0 +1,124 @@
+{
+  "title": "Choose the visual world for GerminaWiki",
+  "question": "The roll assigned Rede de Linhas (the São Paulo metro map as the wiki's map). Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Rede de Linhas",
+      "kicker": "THE ROLL",
+      "lineage": "São Paulo Metrô and CPTM wayfinding: numbered coloured lines, station diagrams, transfer signs",
+      "thesis": "Every subject is a line, every page a station, every [[link]] a transfer: the wiki reads as the network students ride daily.",
+      "palette": ["#ffffff", "#1a1a1a", "#0455a1", "#007e5e", "#ee372f", "#ffd600", "#9b3894", "#3366cc"],
+      "materials": ["enamel signage white", "line-colour bars and numbered roundels", "Wikipedia serif headwords over a Helvetica-style UI"],
+      "viewport": "Article in a Libertinus Serif headword at full scale on white, a vertical line diagram of the subject's pages on the left with this station lit, the subject roundel in the title margin.",
+      "risk": "If line colour leaks into text fields it turns into a theme park; colour must stay on edges, roundels and the diagram.",
+      "raised": [
+        {"from": "challenger-manual", "raise": "One reading size does the work: body fixed at a 64-character measure, H2s hang in the left margin on a line-colour tick."},
+        {"from": "challenger-cloud", "raise": "Colour lives only on edges, roundels and the line diagram; the text field stays achromatic, like a sign panel."},
+        {"from": "challenger-bench", "raise": "State is a station mark, not a hue: filled station = here, ring = visited, struck = missing page, dashed = draft."},
+        {"from": "challenger-exposure", "raise": "Neutrals come from one strict grey ramp; no ad-hoc greys anywhere in the app."},
+        {"from": "challenger-flyer", "raise": "One element per viewport is allowed to be big enough to win: the page headword."}
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Caderno Universitário",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "the Brazilian spiral notebook: ruled lines, red margin rule, coloured section dividers",
+      "thesis": "The wiki as the class's shared caderno: every subject a coloured divider, every page a ruled sheet you can write on.",
+      "palette": ["#fbfbf7", "#22313f", "#d9453b", "#9cc3e6", "#f2b63d"],
+      "materials": ["ruled paper baseline grid", "red margin rule", "divider tabs per subject"],
+      "viewport": "Article on a ruled sheet with the red margin rule, headword written large, subject divider tabs stacked on the fore-edge.",
+      "risk": "Familiar to the point of cliché; paper skeuomorphism slides quickly into childish or into the cream-and-serif look every generator ships."
+    },
+    {
+      "id": "challenger-manual",
+      "label": "Manual de Referência",
+      "verdict": "competitive",
+      "lineage": "boxed-software reference manuals with tabbed coloured divider boards",
+      "thesis": "The wiki as a reference manual: a stepped tab rail per subject, acetate leaves over a full-colour section board.",
+      "palette": ["#f4f1ea", "#151515", "#d9531e", "#e8b81c", "#3b8d3b", "#1d6e8c", "#2f3fa8"],
+      "materials": ["milk acetate leaves", "full-strength section boards", "punched hinges"],
+      "viewport": "Open manual: the subject's colour board behind an acetate article leaf, tab rail down the right edge sized by page count.",
+      "case": "Fuses cleanly: subjects map to tabbed divisions and the measure discipline is excellent; loses on identification, students never held these manuals.",
+      "risk": "The 90 ms stepped, no-easing motion contradicts the Notion-smooth feel you asked for."
+    },
+    {
+      "id": "challenger-storm",
+      "label": "Tempestade de Letras",
+      "verdict": "declined",
+      "lineage": "surreal typographic weather",
+      "thesis": "Words condense into weather across a white field.",
+      "palette": ["#ffffff", "#111111", "#c0c4c8"],
+      "materials": ["monumental grotesk as matter"],
+      "viewport": "A single word-weather event per screen.",
+      "case": "Fuses poorly: spectacle fights reading and editing.",
+      "kept": "Headword set with real mass (tight, large), not as a timid title.",
+      "risk": "Unreadable for study notes."
+    },
+    {
+      "id": "challenger-cloud",
+      "label": "Borda Iridescente",
+      "verdict": "declined",
+      "lineage": "cloud-edge diffraction",
+      "thesis": "Achromatic field with a hairline spectral edge.",
+      "palette": ["#ffffff", "#5b6470", "#9fe3c9", "#f2b7c6", "#b9a7f2"],
+      "materials": ["hairline colour fringes"],
+      "viewport": "Wide white margins, colour only on edges.",
+      "case": "Fuses poorly: no tie to students or school.",
+      "kept": "Colour confined to edges; the text field stays achromatic.",
+      "risk": "Pastel and faint on a projector."
+    },
+    {
+      "id": "challenger-flyer",
+      "label": "Cartaz de Rua",
+      "verdict": "declined",
+      "lineage": "fly-posted festival hoardings",
+      "thesis": "Every square inch occupied; one calm white panel wins.",
+      "palette": ["#f3ede0", "#111111", "#ff6a00", "#ee1f8a", "#7b57f0", "#c9e250"],
+      "materials": ["riso grain", "torn deckle"],
+      "viewport": "Full-bleed collage with one white panel.",
+      "case": "Fuses poorly: you ruled out playful.",
+      "kept": "One element per viewport big enough to win.",
+      "risk": "Loud, game-like."
+    },
+    {
+      "id": "challenger-bench",
+      "label": "Mesa de Corte",
+      "verdict": "declined",
+      "lineage": "film cutting bench",
+      "thesis": "Sections strung along a perforated rail.",
+      "palette": ["#0b0b0b", "#ff7a1a", "#ffffff"],
+      "materials": ["film grain", "tape flags"],
+      "viewport": "A frame rail across a grain-orange field.",
+      "case": "Fuses poorly: dark and editorial-tool heavy.",
+      "kept": "State as a mark, not a hue.",
+      "risk": "Alien to a school wiki."
+    },
+    {
+      "id": "challenger-exposure",
+      "label": "Ficha de Ampliação",
+      "verdict": "declined",
+      "lineage": "darkroom exposure records",
+      "thesis": "Translucent sheets over a zone ramp.",
+      "palette": ["#f2f2f0", "#8a8a88", "#2b2b2b", "#d62fa0"],
+      "materials": ["tracing paper", "hatching"],
+      "viewport": "Overlapping sheets with hatch density.",
+      "case": "Fuses poorly: abstract for students.",
+      "kept": "One strict grey ramp for every neutral.",
+      "risk": "Cold."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "A modern wiki done well: Wikipedia Vector-2022 reading with Notion's editor chrome.",
+    "palette": ["#ffffff", "#202122", "#3366cc", "#f8f9fa"],
+    "materials": ["clean grid", "system sans", "serif headings"],
+    "viewport": "Familiar article layout, table of contents left, tools right.",
+    "risk": "Indistinguishable from every wiki by design; exactly the 'literal Wikipedia clone' you flagged."
+  },
+  "steer": true
+}

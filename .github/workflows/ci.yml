@@ -24,11 +24,14 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run lint
+      # "lint" stage = strict TypeScript type-check (the required check keeps its name).
+      - run: npm run typecheck
 
-      # Static export: fails if a server-only feature is used.
+      - run: npm test
+
+      # Static Vite build to frontend/dist (type-checks again, then bundles).
       - name: Build static site
         run: npm run build
 
       - name: Check static output
-        run: test -f out/index.html
+        run: test -f frontend/dist/index.html

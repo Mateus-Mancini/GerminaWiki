@@ -36,6 +36,12 @@ export type UpdateOwnUserProfile = {
   bio?: string | null;
 };
 
+export type RegisterAccount = {
+  name: string;
+  email: string;
+  password: string;
+};
+
 export type AdminReply = {
   id: string;
   commentId: string;
@@ -149,6 +155,13 @@ export async function login(email: string, password: string): Promise<AuthSessio
     throw new Error('Não foi possível manter a sessão neste navegador. Habilite o armazenamento da sessão e tente novamente.');
   }
   return session;
+}
+
+export function registerAccount(account: RegisterAccount) {
+  return request<OwnUserProfile>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(account)
+  }, false);
 }
 
 export function listFolders() {

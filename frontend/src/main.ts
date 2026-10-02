@@ -17,6 +17,7 @@ import {
   listFolders,
   listPages,
   login,
+  registerAccount,
   updateComment,
   updateOwnUserProfile,
   type RemoteComment,
@@ -34,6 +35,8 @@ let notice = '';
 let loading = true;
 let loginRequired = !getAuthSession();
 let authMessage = '';
+let authSuccessMessage = '';
+let authView: 'login' | 'register' = 'login';
 let currentUser: OwnUserProfile | null = null;
 let latestContribution: { parentPageId: string; page: RemotePage } | null = null;
 let pageComments: RemoteComment[] = [];
@@ -126,7 +129,11 @@ function render() {
   bind();
 }
 function renderLogin() {
-  return `<main class="login-screen"><div class="login-brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Conhecimento compartilhado</small></span></div><section class="login-card"><div class="login-symbol">G</div><div class="eyebrow">ACESSO DO ALUNO</div><h1>Bem-vindo de volta</h1><p>Entre com sua conta escolar para acessar os conteúdos e contribuir com a comunidade.</p><form id="login-form"><label for="login-email">E-mail escolar</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="nome@escola.com.br" required/><label for="login-password">Senha</label><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required/><div id="login-error" class="login-error" role="alert">${esc(authMessage)}</div><button class="primary-button login-submit" type="submit">Entrar <span>→</span></button></form><small class="login-footnote">Sua senha não fica salva neste navegador.</small></section><footer class="login-footer">Instituto Germinare · Ambiente de aprendizagem</footer></main>`;
+  const isRegister = authView === 'register';
+  const form = isRegister
+    ? `<form id="register-form"><label for="register-name">Nome completo</label><input id="register-name" name="name" type="text" maxlength="150" autocomplete="name" placeholder="Como podemos te chamar?" required/><label for="register-email">E-mail</label><input id="register-email" name="email" type="email" maxlength="255" autocomplete="email" placeholder="nome@escola.com.br" required/><label for="register-password">Senha</label><input id="register-password" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Pelo menos 8 caracteres" required/><label for="register-confirm-password">Confirmar senha</label><input id="register-confirm-password" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Digite a senha novamente" required/><div id="register-error" class="login-error" role="alert">${esc(authMessage)}</div><button class="primary-button login-submit" type="submit">Criar conta <span>→</span></button></form><p class="login-switch">Já tem uma conta? <button type="button" data-show-login>Entrar</button></p>`
+    : `<form id="login-form"><label for="login-email">E-mail escolar</label><input id="login-email" name="email" type="email" autocomplete="username" placeholder="nome@escola.com.br" required/><label for="login-password">Senha</label><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required/><div id="login-error" class="login-error" role="alert">${esc(authMessage)}</div>${authSuccessMessage ? `<div class="login-success" role="status">${esc(authSuccessMessage)}</div>` : ''}<button class="primary-button login-submit" type="submit">Entrar <span>→</span></button></form><p class="login-switch">Ainda não tem uma conta? <button type="button" data-show-register>Criar conta</button></p>`;
+  return `<main class="login-screen"><div class="login-brand"><span class="brand-mark">G</span><span><strong>GerminaWiki</strong><small>Conhecimento compartilhado</small></span></div><section class="login-card"><div class="login-symbol">G</div><div class="eyebrow">${isRegister ? 'JUNTE-SE À COMUNIDADE' : 'ACESSO DO ALUNO'}</div><h1>${isRegister ? 'Crie sua conta' : 'Bem-vindo de volta'}</h1><p>${isRegister ? 'Preencha seus dados para começar a aprender e contribuir com a comunidade.' : 'Entre com sua conta escolar para acessar os conteúdos e contribuir com a comunidade.'}</p>${form}<small class="login-footnote">${isRegister ? 'Sua conta terá acesso de membro.' : 'Sua senha não fica salva neste navegador.'}</small></section><footer class="login-footer">Instituto Germinare · Ambiente de aprendizagem</footer></main>`;
 }
 function renderCatalog(items: RemotePage[], folderOptions: string) {
   if (loading) return '<section class="content"><p class="empty">Carregando conteúdo do backend…</p></section>';
@@ -216,6 +223,9 @@ function bind() {
   document.querySelectorAll<HTMLButtonElement>('[data-reply-comment]').forEach(button => button.addEventListener('click', () => { replyingToCommentId = button.dataset.replyComment!; render(); }));
   document.querySelectorAll<HTMLButtonElement>('[data-cancel-admin-reply]').forEach(button => button.addEventListener('click', () => { replyingToCommentId = null; render(); }));
   document.querySelector<HTMLFormElement>('#login-form')?.addEventListener('submit', event => { void signIn(event); });
+  document.querySelector<HTMLFormElement>('#register-form')?.addEventListener('submit', event => { void signUp(event); });
+  document.querySelector<HTMLButtonElement>('[data-show-register]')?.addEventListener('click', () => { authView = 'register'; authMessage = ''; authSuccessMessage = ''; render(); });
+  document.querySelector<HTMLButtonElement>('[data-show-login]')?.addEventListener('click', () => { authView = 'login'; authMessage = ''; render(); });
   document.querySelector<HTMLButtonElement>('#open-profile')?.addEventListener('click', () => document.querySelector<HTMLDialogElement>('#profile-dialog')?.showModal());
   document.querySelector<HTMLFormElement>('#profile-form')?.addEventListener('submit', event => { void saveProfile(event); });
   document.querySelector<HTMLButtonElement>('#logout')?.addEventListener('click', logout);
@@ -227,6 +237,7 @@ function expireSession() {
   pageComments = [];
   commentsLoading = false;
   loginRequired = true;
+  authView = 'login';
   selectedPage = null;
   authMessage = 'Sua sessão expirou. Entre novamente para continuar.';
 }
@@ -244,6 +255,7 @@ async function signIn(event: SubmitEvent) {
   const email = String(data.get('email') ?? '').trim();
   const password = String(data.get('password') ?? '');
   if (errorElement) errorElement.textContent = '';
+  authSuccessMessage = '';
   if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Entrando…'; }
   try {
     await login(email, password);
@@ -263,6 +275,44 @@ async function signIn(event: SubmitEvent) {
     if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Entrar <span>→</span>'; }
   }
 }
+async function signUp(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const errorElement = document.querySelector<HTMLElement>('#register-error');
+  const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const data = new FormData(form);
+  const name = String(data.get('name') ?? '').trim();
+  const email = String(data.get('email') ?? '').trim();
+  const password = String(data.get('password') ?? '');
+  const confirmation = String(data.get('confirmPassword') ?? '');
+  if (errorElement) errorElement.textContent = '';
+  if (password !== confirmation) {
+    if (errorElement) errorElement.textContent = 'As senhas não coincidem.';
+    return;
+  }
+  if (new TextEncoder().encode(password).length > 72) {
+    if (errorElement) errorElement.textContent = 'A senha deve ter no máximo 72 bytes.';
+    return;
+  }
+  if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Criando conta…'; }
+  try {
+    await registerAccount({ name, email, password });
+    authView = 'login';
+    authMessage = '';
+    authSuccessMessage = 'Conta criada com sucesso. Entre com seu e-mail e sua senha.';
+    render();
+  } catch (error) {
+    if (errorElement) {
+      errorElement.textContent = error instanceof ApiRequestError && error.status === 409
+        ? 'Este e-mail já está cadastrado.'
+        : error instanceof ApiRequestError && error.status === 400
+          ? 'Confira o nome, o e-mail e os requisitos da senha.'
+          : error instanceof Error ? error.message : 'Não foi possível criar a conta. Tente novamente.';
+    }
+  } finally {
+    if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = 'Criar conta <span>→</span>'; }
+  }
+}
 function logout() {
   clearAuthSession();
   currentUser = null;
@@ -277,7 +327,9 @@ function logout() {
   editingCommentId = null;
   replyingToCommentId = null;
   loginRequired = true;
+  authView = 'login';
   authMessage = '';
+  authSuccessMessage = '';
   notice = '';
   render();
 }

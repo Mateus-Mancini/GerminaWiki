@@ -23,7 +23,7 @@ Expected: everything passes, and the main chunk doesn't contain BlockNote. Check
 
 `npm run dev` → http://localhost:3000 → sign in → open the QA page → **Editar**.
 
-1. Change the title and a paragraph, then press `Ctrl+S`. You should see "Salvo" announced, the reading view showing the change, and the version increased by 1.
+1. Time it (SC-001: under 30 s from "Editar" to saved). Change the title and a paragraph, then press `Ctrl+S`. You should see "Salvo" announced, the reading view showing the change, and the version increased by 1.
 2. Open **Editar**, change nothing, and look at the save control. It should be disabled ("Nada para salvar").
 3. Change text, then click **Cancelar**. A confirmation should appear; choosing "Descartar" restores the reading view unchanged.
 

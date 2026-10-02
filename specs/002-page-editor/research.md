@@ -67,7 +67,7 @@ Each section records a decision, why it was made, and the alternatives considere
 ## R7. Drafts and expired sessions
 
 - **Decision**:
-  - Drafts go in `localStorage` under `germinawiki.draft.<userId>.<pageId>`, holding `{ title, content (encoded Markdown), baseEtag, savedAt }`. Writes are debounced (1 s) and also flushed on `pagehide`/`visibilitychange`.
+  - Drafts go in `localStorage` under `germinawiki.draft.<userId>.<pageId>.<tabId>` (a per-tab ID, so two tabs never overwrite each other), holding `{ title, content (encoded Markdown), baseEtag, savedAt }`. Writes are debounced (1 s) and also flushed on `pagehide`/`visibilitychange`.
   - A draft is deleted after a successful save or an explicit discard.
   - The shell's logout removes every `germinawiki.draft.<userId>.*` key (US3 scenario 5).
   - A 401 on save opens an in-editor sign-in dialog that reuses the shell's `login()`, then retries the same save.

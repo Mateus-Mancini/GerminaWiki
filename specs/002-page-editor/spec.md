@@ -113,7 +113,7 @@ While editing, a member adds an image to the page from their device. It uploads,
 ### Edge Cases
 
 - The page is deleted by someone else while a member is editing it: saving reports that the page no longer exists, and the member can copy their text; nothing is recreated silently.
-- The member's account is not allowed to edit (server refuses): the editor shows that they lack permission and keeps their text for copying; the edit action is not shown when the server is known to refuse.
+- The member's account is not allowed to edit (server refuses): the editor shows that they lack permission and keeps their text for copying. The edit action is always shown, because the server doesn't tell the client in advance who may edit.
 - The page is very long (thousands of lines): opening and typing stay responsive (see SC-005).
 - The member pastes formatted text from another site or document: the result contains only formatting the wiki supports; scripts, styles and embedded objects are removed.
 - The member pastes text containing something that looks like a comment anchor: it is not treated as an anchor and cannot hijack another block's comments.

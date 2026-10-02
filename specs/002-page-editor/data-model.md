@@ -77,7 +77,7 @@ loading ──► editing ◄──────────────┐
 
 ## Draft (client, `localStorage`)
 
-Key: `germinawiki.draft.<userId>.<pageId>`
+Key: `germinawiki.draft.<userId>.<pageId>.<tabId>`, where `tabId` is a random ID kept in `sessionStorage` for the tab's lifetime, so two tabs editing the same page never overwrite each other's draft.
 
 | Field | Type | Rules |
 |---|---|---|
@@ -86,7 +86,7 @@ Key: `germinawiki.draft.<userId>.<pageId>`
 | `baseEtag` | string | the version the draft started from; a mismatch at the next save leads to conflict |
 | `savedAt` | ISO 8601 timestamp | shown in the restore banner |
 
-Lifecycle: written 1 s after the last change and on `pagehide`; removed after a successful save, an explicit discard, or logout (every key with the member's prefix). An unreadable or invalid draft is ignored and removed.
+Lifecycle: written 1 s after the last change and on `pagehide`; removed after a successful save, an explicit discard, or logout (every key with the member's prefix). An unreadable or invalid draft is ignored and removed. When editing starts, the banner offers the **newest** draft for that member and page across all tabs, and says how many others exist ("e mais N rascunhos"). Discarding removes only the one shown.
 
 ## Conflict (client)
 

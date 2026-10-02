@@ -51,6 +51,8 @@ A block editor (BlockNote) that edits existing wiki pages inside the current wor
 
 **Note on IV**: the constitution says conflicts arrive as HTTP **409**, but the pages API returns **412 Precondition Failed** (verified in production). The editor treats both as a conflict, so the principle's intent is met. Aligning the wording is a PATCH amendment for Clara, or a backend change for Camilla. It is recorded here and doesn't block this feature.
 
+**Note on V**: the project has no logging or error-reporting mechanism yet. The editor's structured `report()` events (research R14) are the first one; T042 proposes that the shell adopt the same function.
+
 **Post-design re-check (after Phase 1)**: no violations, so no Complexity Tracking entries.
 
 ## Project Structure

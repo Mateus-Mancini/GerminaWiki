@@ -52,6 +52,7 @@ The codec is the data-integrity core: every save goes through it.
   - new blocks get fresh anchors; list runs stay one segment
   - deleted segments drop their anchors
   - `rawMarkdown` text is written back exactly
+  - pasted HTML containing `<script>`, `<style>`, `onclick` attributes and `<iframe>` encodes to Markdown containing none of them (FR-013, constitution IV)
 - [ ] T008 [P] `frontend/tests/contract/pages-api.test.ts` (stubbed `fetch`):
   - `getPageForEdit` returns `{ page, etag }` from the `ETag` header
   - `savePage` sends `If-Match` and returns the new etag
@@ -87,10 +88,10 @@ The codec is the data-integrity core: every save goes through it.
 
 - [ ] T015 [P] [US1] `frontend/tests/integration/mount.test.ts`, per contracts/editor-mount.md:
   - `openPageEditor` mounts in the host and sets `body[data-editing]`
-  - focus goes to the title
+  - focus goes to the start of the content
   - `onClose({ saved: true, page })` fires after save
   - `requestClose()` asks to confirm when there are unsaved changes
-  - closing returns focus to `#edit-page`
+  - after `onClose`, the shell's re-render focuses `#edit-page`
 - [ ] T016 [P] [US1] `frontend/tests/component/PageEditor.test.tsx`:
   - loading state
   - save via button and `Ctrl+S` sends the encoded content with `If-Match`
@@ -99,6 +100,8 @@ The codec is the data-integrity core: every save goes through it.
   - network or 5xx failure keeps the text and offers retry
   - 403 and 404 messages; statuses announced in the `aria-live` region
   - a 412/409 never overwrites: the text is kept and a conflict state is shown (the full screen arrives in US2)
+  - failed saves, 401 and 403 call `report()` with only `{pageId, status, version}`; no title, content or token in the payload (FR-016)
+  - a save answered after 8 s (cold start) keeps "Salvando…" visible and then succeeds, with no client timeout
   - axe has no violations
 
 ### Implementation
@@ -115,6 +118,7 @@ The codec is the data-integrity core: every save goes through it.
   - an "Editar" button `#edit-page` in `renderPage`
   - the `openPageEditor` call
   - `requestClose()` before navigation, search and logout
+  - focus `#edit-page` after the re-render that follows `onClose`
   - CSS hiding the reading view while `body[data-editing]` is set
   
   Request Clara's review.
@@ -174,20 +178,20 @@ The codec is the data-integrity core: every save goes through it.
 ### Tests (write first, must fail)
 
 - [ ] T029 [P] [US3] `frontend/tests/unit/drafts.test.ts`:
-  - key `germinawiki.draft.<userId>.<pageId>`
+  - key `germinawiki.draft.<userId>.<pageId>.<tabId>` (`tabId` from `sessionStorage`), so two tabs never overwrite each other
   - debounced write; flush on `pagehide`
   - removed after save or discard
   - `clearDrafts(userId)` removes only that member's keys
   - unreadable or invalid drafts are ignored and removed
   - storage throwing does not break editing
-- [ ] T030 [P] [US3] `frontend/tests/component/DraftBanner.test.tsx`: offers restore or discard with the time; restoring a draft whose `baseEtag` is stale leads to the conflict screen at the next save
+- [ ] T030 [P] [US3] `frontend/tests/component/DraftBanner.test.tsx`: offers the newest draft across tabs, with its time and "e mais N rascunhos"; discarding removes only that one; restoring a draft whose `baseEtag` is stale leads to the conflict screen at the next save
 - [ ] T031 [P] [US3] `frontend/tests/component/ReauthDialog.test.tsx`:
   - a 401 on save opens sign-in inside the editor; success retries the same payload
   - cancel keeps the draft and calls `onSignedOut`
 
 ### Implementation
 
-- [ ] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`)
+- [ ] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`; per-tab key)
 - [ ] T033 [US3] `frontend/src/editor/DraftBanner.tsx` and its wiring in `PageEditor.tsx`
 - [ ] T034 [US3] `frontend/src/editor/ReauthDialog.tsx`, reusing `login()` from `backend-api.ts`, wired to the `reauth` state
 - [ ] T035 [US3] Call `clearDrafts(userId)` in the shell's `logout()` in `frontend/src/main.ts` (Clara's review)
@@ -217,7 +221,7 @@ The codec is the data-integrity core: every save goes through it.
 - [ ] T039 [P] `README.md`: an editor section (how to edit, conflict behaviour, the stored anchor format) linking this spec
 - [ ] T040 Build check: `npm run build` produces a separate editor chunk, and the main chunk contains no BlockNote (quickstart §1)
 - [ ] T041 Run quickstart §2–§7 against production with a QA page and record the results here; then clean up
-- [ ] T042 Ask Clara for a PATCH amendment of constitution IV ("HTTP 409" → "a version conflict (HTTP 409 or 412)"), or ask Camilla to return 409 (plan.md, Constitution Check note)
+- [ ] T042 Ask Clara for a PATCH amendment of constitution IV ("HTTP 409" → "a version conflict (HTTP 409 or 412)"), or ask Camilla to return 409 (plan.md, Constitution Check note). In the same amendment, propose `report()` (research R14) as the project's logging mechanism for principle V.
 
 ## Dependencies
 

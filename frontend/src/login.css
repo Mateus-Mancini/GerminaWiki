@@ -1,2 +1,0 @@
-.login-screen{background-color:#f6f7f2;background-image:url('/wiki-globe.svg'),radial-gradient(circle at 13% 18%,#e5eee3 0,transparent 30%),radial-gradient(circle at 88% 82%,#e9efdf 0,transparent 28%);background-position:right 9vw center,center,center;background-repeat:no-repeat;background-size:min(56vw,620px),auto,auto}
-@media(max-width:700px){.login-screen{background-position:center 20px,center,center;background-size:min(78vw,340px),auto,auto}}

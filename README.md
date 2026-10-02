@@ -23,6 +23,15 @@ Code lives in `frontend/` (`index.html`, `src/`, `tests/`, `public/`).
 
 Features follow Spec Kit (`specify → clarify → plan → tasks → analyze → implement`). Specs are in [`specs/`](specs/), and the principles are in the [constitution](.specify/memory/constitution.md).
 
+## Page editor
+
+**Editar página** on a page opens a block editor (BlockNote) in place of the reading view. Its spec, plan and contracts are in [`specs/002-page-editor`](specs/002-page-editor/).
+
+- **Saving** sends the page's `ETag` as `If-Match`. If someone saved first, the API answers 412 and the editor shows a **conflict screen** with both versions. You can discard yours, keep editing on top of the published one, or replace it after an explicit confirmation. Nothing is overwritten silently.
+- **Drafts** are kept in this browser per member, page and tab until you save or discard them, and they're offered back when you edit again. When the session expires mid-edit, you sign in inside the editor and the same save is retried. Logging out deletes your drafts.
+- **Stored format:** pages are Markdown. Each block is preceded by its comment anchor, `<!--b:<uuid>-->`, which comments point to. Wikilinks are `[[slug]]`, and images are `<API>/api/images/{id}`. The editor rewrites only the blocks you changed: an untouched page saves byte for byte, and anchors stay with their blocks. Content the editor can't represent appears as **Markdown avançado** and is kept as written.
+- **Loading:** the editor is a separate chunk, downloaded only when someone edits. Reading pages doesn't load it.
+
 ## Deploy
 
 The app is hosted on **Firebase Hosting** (free Spark plan) at https://germinawiki.web.app. There's no server of its own: data comes from the GerminaWiki API, called from the browser.

@@ -34,7 +34,7 @@ description: "Task list for 003-notebook-design"
 - [ ] T007 [P] Binder model test `frontend/tests/unit/shell/binder.test.ts` covering contracts/binder-model.md guarantees 1–5
 - [ ] T008 `frontend/src/shell/binder.ts`: `buildBinder`, `dividerForPage`, `dividerById`, `allPages`; makes T007 pass
 - [ ] T009 [P] `frontend/src/theme/motion.ts`: `turnSheet(update)`, using View Transitions when supported and motion is allowed, and calling `update()` directly otherwise (R4)
-- [ ] T010 Switch `frontend/src/main.ts` to the theme (import `theme/fonts`, `tokens.css`, `base.css`, `notebook.css`), remove the old stylesheet imports and delete `styles.css`, `course.css`, `login.css`, `auth.css`, `workspace.css`; drop the Google Fonts import (R6)
+- [ ] T010 Switch `frontend/src/main.ts` to the theme (import `theme/fonts`, `tokens.css`, `base.css`, `notebook.css`), remove the old stylesheet imports and delete `styles.css`, `course.css`, `login.css`, `auth.css`, `workspace.css`; drop the Google Fonts import (R6); in `frontend/index.html` set `<meta name="theme-color">` to the cover colour
 
 **Checkpoint**: `npm test` and `npm run build` pass; the app runs with the new tokens and fonts
 
@@ -80,10 +80,11 @@ description: "Task list for 003-notebook-design"
 
 ## Phase 8: Polish & cross-cutting
 
-- [ ] T032 Browser pass (quickstart §2–§6, §8) at 360/768/1280/1440 with screenshots; fix every overflow, misalignment or contrast problem found in one batch
+- [ ] T032 Browser pass (quickstart §2–§6, §8) at 360/768/1280/1440 with screenshots; fix every overflow, misalignment or contrast problem found in one batch. Also measure SC-007: font bytes on first load (< 150 KB) and time from choosing a page to readable text, against the 002 build (< 100ms slower)
 - [ ] T033 Run `impeccable detect` and the finish review (quickstart §7); fix findings; record the verdict here
 - [ ] T034 [P] Write `DESIGN.md` (the documented system: tokens, typography, components, motion, do's and don'ts) and update the README's UI section
 - [ ] T035 Full regression: `npm test`, `npm run build`, and the 002 editor quickstart script against the new look
+- [ ] T036 Open the PR into `develop` after 002 merges, describing the shell markup changes, the deleted stylesheets and the search nuance (R8), and request Clara's review (constitution: integration work is reviewed by every affected owner)
 
 ## Dependencies & Execution Order
 

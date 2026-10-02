@@ -55,7 +55,7 @@ The left side of the app is a binder. Years are section labels, and each subject
 2. **Given** a student on a page, **When** they look at the binder, **Then** the page's subject tab is pulled out, its pages are listed, and the current page is marked.
 3. **Given** the home screen, **When** it loads, **Then** every subject appears as a divider with its name, its year and its number of pages, and choosing one opens its contents sheet, which lists its pages with their opening lines.
 4. **Given** a window narrower than 900px, **When** the app is shown, **Then** the binder becomes a drawer behind a "Matérias" toggle so the sheet keeps the full width; Esc or choosing a page closes it.
-5. **Given** the search field, **When** the student types, **Then** results filter as before (search behaviour does not change).
+5. **Given** the search field in the binder, **When** the student types, **Then** matching pages are listed on the home sheet as before; typing while a page or subject is open returns to the home sheet to show them (research R8).
 
 ---
 

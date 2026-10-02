@@ -194,7 +194,7 @@ The codec is the data-integrity core: every save goes through it.
 - [X] T032 [P] [US3] `frontend/src/editor/drafts.ts` (data-model `Draft`: `title`, `content`, `baseEtag`, `savedAt`; per-tab key)
 - [X] T033 [US3] `frontend/src/editor/DraftBanner.tsx` and its wiring in `PageEditor.tsx`
 - [X] T034 [US3] `frontend/src/editor/ReauthDialog.tsx`, reusing `login()` from `backend-api.ts`, wired to the `reauth` state
-- [ ] T035 [US3] Call `clearDrafts(userId)` in the shell's `logout()` in `frontend/src/main.ts` (Clara's review)
+- [X] T035 [US3] Call `clearDrafts(userId)` in the shell's `logout()` in `frontend/src/main.ts` (Clara's review)
 
 ---
 

@@ -19,6 +19,7 @@ import {
   type RemotePage
 } from './services/backend-api.js';
 import { openPageEditor, preloadPageEditor, type EditorHandle } from './editor/index.js';
+import { clearDrafts } from './editor/drafts.js';
 
 let query = '';
 let selectedFolder = 'all';
@@ -208,6 +209,8 @@ async function signIn(event: SubmitEvent) {
 }
 async function logout() {
   if (!(await leaveEditor())) return;
+  // Unsaved drafts stay on the device; remove them so the next person on a shared computer can't read them.
+  if (currentUser) clearDrafts(currentUser.id);
   clearAuthSession();
   currentUser = null;
   folders = [];

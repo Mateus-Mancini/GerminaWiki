@@ -8,7 +8,8 @@ const api: EditorApi = {
   getPageForEdit: vi.fn(async () => ({ page, etag: '"p1-v1"' })),
   savePage: vi.fn(async () => ({ page: { ...page, version: 2 }, etag: '"p1-v2"' })),
   listPageCommentAnchors: vi.fn(async () => new Map()),
-  getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null }))
+  getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
+    searchPages: vi.fn(async () => [])
 };
 
 let host: HTMLElement;

@@ -3,7 +3,7 @@ import './editor.css';
 import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
 import { pt } from '@blocknote/core/locales';
 import { BlockNoteView } from '@blocknote/ariakit';
-import { useCreateBlockNote } from '@blocknote/react';
+import { SuggestionMenuController, useCreateBlockNote } from '@blocknote/react';
 import { createRoot } from 'react-dom/client';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as backend from '../services/backend-api';
@@ -14,8 +14,11 @@ import { parseAnchor, type BlockLike } from './codec/anchors';
 import { decode, syncSnapshots, type Converter, type Decoded } from './codec/decode';
 import { encode } from './codec/encode';
 import { report } from './report';
+import { WIKILINK_TRIGGER, wikilinkItems } from './wikilinks';
 
-export type EditorApi = Pick<typeof backend, 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile'>;
+export type EditorApi = Pick<
+  typeof backend, 'getPageForEdit' | 'savePage' | 'listPageCommentAnchors' | 'getPublicProfile' | 'searchPages'
+>;
 export type CloseResult = { saved: boolean; page?: RemotePage };
 export type EditorHandle = { hasUnsavedChanges(): boolean; requestClose(): Promise<boolean> };
 
@@ -136,6 +139,8 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
 
   useEffect(load, [load]);
 
+  const getWikilinkItems = useMemo(() => wikilinkItems(editor as never, api.searchPages), [api, editor]);
+
   // Content change detection, debounced so large pages stay responsive while typing.
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const onContentChange = useCallback(() => {
@@ -209,6 +214,7 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     if (!current || !page || titleProblem(title) || status.kind === 'saving') return;
     const mine = { title: title.trim(), content: encode(current, editor.document as BlockLike[], converter) };
     if (mine.content === current.original && mine.title === page.title) return;
+
     await submit(mine, page.title, etag.current);
   }, [converter, editor, page, status.kind, submit, title]);
 
@@ -335,7 +341,9 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
             {titleError && <p id={titleId} className="page-editor__field-error">{titleError}</p>}
           </>
         )}
-        <BlockNoteView editor={editor} theme="light" onChange={onContentChange} />
+        <BlockNoteView editor={editor} theme="light" onChange={onContentChange}>
+          <SuggestionMenuController triggerCharacter={WIKILINK_TRIGGER} getItems={getWikilinkItems} />
+        </BlockNoteView>
       </div>
 
       {confirming && (

@@ -11,3 +11,13 @@ afterEach(cleanup);
 // jsdom has no layout. BlockNote's side menu hit-tests the pointer position on mouse moves.
 Document.prototype.elementFromPoint ??= () => null;
 Document.prototype.elementsFromPoint ??= () => [];
+// BlockNote's suggestion menu stores the trigger's position with DOMRect.toJSON(), which jsdom lacks.
+const boundingRect = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function (this: Element) {
+  const rect = boundingRect.call(this);
+  if (typeof rect.toJSON !== 'function') {
+    const { x, y, width, height, top, right, bottom, left } = rect;
+    Object.defineProperty(rect, 'toJSON', { value: () => ({ x, y, width, height, top, right, bottom, left }) });
+  }
+  return rect;
+};

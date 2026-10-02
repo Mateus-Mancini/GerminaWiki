@@ -18,6 +18,7 @@ function fakeApi(over: Partial<EditorApi> = {}): EditorApi {
     savePage: vi.fn(async (_id, changes) => ({ page: page({ ...changes, version: 4 }), etag: '"p1-v4"' })),
     listPageCommentAnchors: vi.fn(async () => new Map()),
     getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
+    searchPages: vi.fn(async () => []),
     ...over
   };
 }

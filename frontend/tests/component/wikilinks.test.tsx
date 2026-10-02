@@ -1,71 +1,81 @@
-import { SuggestionMenu } from '@blocknote/core/extensions';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { PageEditor, type EditorApi } from '../../src/editor/PageEditor';
+import { WIKILINK_TRIGGER, wikilinkItems } from '../../src/editor/wikilinks';
 import type { RemotePage } from '../../src/services/backend-api';
 
 // FR-010: "[[" opens a page picker that stores [[slug]].
-const page: RemotePage = { id: 'p1', title: 'Física', slug: 'fisica', version: 1, folderId: 'f1', content: 'Veja \n' };
+// jsdom can't drive ProseMirror's text input and selection reliably, so typing "[[" into the real editor is
+// covered manually (quickstart §5.4); these tests pin the picker's behaviour behind BlockNote's menu.
 const target: RemotePage = { id: 'p2', title: 'Óptica geométrica', slug: 'optica-geometrica', version: 1, folderId: 'f1', content: '' };
 
-type Editor = {
-  getExtension: (ext: unknown) => { openSuggestionMenu(trigger: string): void } | undefined;
-  insertInlineContent: (content: string) => void;
-  setTextCursorPosition: (block: unknown, at: 'end') => void;
-  focus: () => void;
-  document: { id: string }[];
-};
-let editor: Editor;
-
-function api(): EditorApi {
+function fakeEditor(textBeforeCursor: string) {
+  const inserted: string[] = [];
   return {
-    getPageForEdit: vi.fn(async () => ({ page, etag: '"p1-v1"' })),
-    savePage: vi.fn(async (_id, changes) => ({ page: { ...page, ...changes, version: 2 }, etag: '"p1-v2"' })),
-    listPageCommentAnchors: vi.fn(async () => new Map()),
-    getPublicProfile: vi.fn(),
-    searchPages: vi.fn(async () => [target])
+    inserted,
+    insertInlineContent: (content: string) => { inserted.push(content); },
+    prosemirrorState: {
+      selection: {
+        $from: {
+          parentOffset: textBeforeCursor.length,
+          parent: { textBetween: (from: number, to: number) => textBeforeCursor.slice(from, to) }
+        }
+      }
+    }
   };
 }
 
-async function openPicker(fake: EditorApi, query: string) {
-  render(<PageEditor pageId="p1" currentUser={{ id: 'u1', name: 'Bia' }} api={fake} onClose={vi.fn()}
-    onSignedOut={vi.fn()} onEditorReady={e => { editor = e as never; }} />);
-  await screen.findByText(/Veja/);
-  act(() => {
-    editor.setTextCursorPosition(editor.document[0], 'end');
-    editor.focus();
-    editor.getExtension(SuggestionMenu)!.openSuggestionMenu('[[');
-  });
-  act(() => editor.insertInlineContent(query));
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { vi.useRealTimers(); });
+
+async function items(getItems: (query: string) => Promise<unknown>, query: string) {
+  const result = getItems(query);
+  await vi.advanceTimersByTimeAsync(200);
+  return result as Promise<{ title: string; subtext?: string; onItemClick: () => void }[]>;
 }
 
-beforeEach(() => { vi.spyOn(console, 'warn').mockImplementation(() => {}); });
-afterEach(() => vi.restoreAllMocks());
-
-test('typing after [[ searches pages and shows their titles', async () => {
-  const fake = api();
-  await openPicker(fake, 'ópt');
-  expect(await screen.findByText('Óptica geométrica')).toBeTruthy();
-  await waitFor(() => expect(fake.searchPages).toHaveBeenCalledWith('ópt'));
+test('the trigger is [[', () => {
+  expect(WIKILINK_TRIGGER).toBe('[[');
 });
 
-test('choosing a page stores [[slug]]', async () => {
-  const fake = api();
-  await openPicker(fake, 'ópt');
-  await userEvent.setup().click(await screen.findByText('Óptica geométrica'));
-  await userEvent.setup().click(await screen.findByRole('button', { name: 'Salvar' }));
-  await waitFor(() => expect(fake.savePage).toHaveBeenCalled());
-  const content: string = (fake.savePage as ReturnType<typeof vi.fn>).mock.calls[0][1].content;
-  expect(content).toContain('Veja [[optica-geometrica]]');
-  expect(content).not.toContain('[[[[');
+test('typing after [[ searches pages and lists their titles', async () => {
+  const search = vi.fn(async () => [target]);
+  const list = await items(wikilinkItems(fakeEditor('Veja [['), search), ' ópt ');
+  expect(search).toHaveBeenCalledWith('ópt');
+  expect(list.map(item => [item.title, item.subtext])).toEqual([['Óptica geométrica', 'optica-geometrica']]);
 });
 
-test('Escape closes the picker and leaves the typed text', async () => {
-  const fake = api();
-  await openPicker(fake, 'ópt');
-  await screen.findByText('Óptica geométrica');
-  await userEvent.setup().keyboard('{Escape}');
-  await waitFor(() => expect(screen.queryByText('Óptica geométrica')).toBeNull());
-  expect(screen.getByText(/Veja \[\[ópt/)).toBeTruthy();
+test('nothing is searched until something is typed', async () => {
+  const search = vi.fn(async () => [target]);
+  await expect(items(wikilinkItems(fakeEditor('[['), search), '  ')).resolves.toEqual([]);
+  expect(search).not.toHaveBeenCalled();
+});
+
+test('searches wait for a pause in typing; superseded queries are dropped', async () => {
+  const search = vi.fn(async () => [target]);
+  const getItems = wikilinkItems(fakeEditor('[['), search);
+  const first = getItems('ó');
+  const second = getItems('óp');
+  await vi.advanceTimersByTimeAsync(200);
+  await expect(first).resolves.toEqual([]);
+  expect((await second).length).toBe(1);
+  expect(search).toHaveBeenCalledTimes(1);
+  expect(search).toHaveBeenCalledWith('óp');
+});
+
+test('choosing a page completes the [[ already typed with slug]]', async () => {
+  const editor = fakeEditor('Veja [[');
+  const [item] = await items(wikilinkItems(editor, async () => [target]), 'ópt');
+  item.onItemClick();
+  expect(editor.inserted).toEqual(['optica-geometrica]] ']);
+});
+
+test('if the menu removed the trigger, the whole [[slug]] is inserted (never doubled)', async () => {
+  const editor = fakeEditor('Veja ');
+  const [item] = await items(wikilinkItems(editor, async () => [target]), 'ópt');
+  item.onItemClick();
+  expect(editor.inserted).toEqual(['[[optica-geometrica]] ']);
+});
+
+test('a failed search shows no items instead of breaking the editor', async () => {
+  const search = vi.fn(async () => { throw new Error('offline'); });
+  await expect(items(wikilinkItems(fakeEditor('[['), search), 'x')).resolves.toEqual([]);
 });

@@ -97,6 +97,7 @@ describe('PageEditor conflict flow', () => {
         .mockResolvedValue({ page: page({ version: 5 }), etag: '"p1-v5"' }),
       listPageCommentAnchors: vi.fn(async () => new Map()),
       getPublicProfile: vi.fn(async () => ({ id: 'u2', name: 'Ana', avatarUrl: null, bio: null })),
+    searchPages: vi.fn(async () => []),
       ...over
     };
   }

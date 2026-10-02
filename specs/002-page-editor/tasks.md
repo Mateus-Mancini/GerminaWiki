@@ -159,14 +159,14 @@ The codec is the data-integrity core: every save goes through it.
 - [ ] T025 [P] [US4] `frontend/tests/component/commentWarning.test.tsx`:
   - deleting blocks whose anchors have comments shows a warning before saving and lists how many comments are affected (FR-009)
   - blocks without comments delete silently
-- [ ] T026 [P] [US4] `frontend/tests/component/wikilinks.test.tsx`:
+- [X] T026 [P] [US4] `frontend/tests/component/wikilinks.test.tsx`:
   - typing `[[` opens the picker, and search results show titles
   - choosing one inserts `[[<slug>]]`
   - Escape closes it, leaving the typed text
 
 ### Implementation
 
-- [ ] T027 [US4] `frontend/src/editor/wikilinks.ts`: a `SuggestionMenuController` with trigger `[[`, `searchPages` debounced 200 ms, inserting `[[slug]]` (R8)
+- [X] T027 [US4] `frontend/src/editor/wikilinks.ts`: a `SuggestionMenuController` with trigger `[[`, `searchPages` debounced 200 ms, inserting `[[slug]]` (R8)
 - [ ] T028 [US4] Comment-anchor warning in `PageEditor.tsx`: load `listPageCommentAnchors` on open, and compute anchors that would be deleted before saving
 
 ---

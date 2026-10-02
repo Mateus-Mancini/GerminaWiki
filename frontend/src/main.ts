@@ -14,6 +14,9 @@ import {
   getPage,
   listComments,
   listFolders,
+  createFolder,
+  updateFolder,
+  deleteFolder,
   listPages,
   login,
   registerAccount,
@@ -30,7 +33,7 @@ import { renderArticle } from './reader/article.js';
 import { excerpt } from './reader/excerpt.js';
 import { installLinkPreviews } from './reader/preview.js';
 import { snapToRule } from './reader/rule.js';
-import { buildBinder, dividerById, dividerForPage, type Binder, type BinderPage, type Divider } from './shell/binder.js';
+import { buildBinder, dividerById, dividerForPage, UNFILED, type Binder, type BinderPage, type Divider } from './shell/binder.js';
 import { icon } from './theme/icons.js';
 import { turnSheet } from './theme/motion.js';
 
@@ -171,13 +174,59 @@ function renderBinder(binder: Binder, current: Divider | undefined) {
   const sections = binder.sections.map(section => {
     const tabs = section.dividers.map(divider => {
       const open = divider.id === current?.id;
-      const list = open ? `<ul class="tab__pages">${divider.pages.map(binderPage).join('')}${divider.groups.map(group => `<li class="tab__group" style="--depth:${group.depth}">${esc(group.name)}</li>${group.pages.map(binderPage).join('')}`).join('')}${divider.pageCount ? '' : '<li class="tab__empty">Nenhuma página ainda</li>'}</ul>` : '';
+      const list = open ? `<ul class="tab__pages">${divider.pages.map(binderPage).join('')}${divider.groups.map(group => `<li class="tab__group" style="--depth:${group.depth}">${esc(group.name)}</li>${group.pages.map(binderPage).join('')}`).join('')}${divider.pageCount ? '' : '<li class="tab__empty">Nenhuma página ainda</li>'}${divider.id === UNFILED.id ? '' : folderTools(divider.id, divider.name)}</ul>` : '';
       return `<li class="tab${open ? ' tab--open' : ''}" data-colour="${divider.colour}"><button class="tab__button" type="button" data-subject="${esc(divider.id)}" ${open && !selectedPage ? 'aria-current="true"' : ''} title="${esc(divider.name)}"><span class="tab__name">${esc(divider.name)}</span><span class="tab__count">${divider.pageCount}</span></button>${list}</li>`;
     }).join('');
-    return `<section class="binder__section" aria-labelledby="section-${esc(section.id)}"><h2 class="binder__label" id="section-${esc(section.id)}">${esc(section.name)}</h2>${tabs ? `<ul class="binder__tabs">${tabs}</ul>` : '<p class="binder__empty">Nenhuma matéria nesta seção</p>'}</section>`;
+    return `<section class="binder__section" aria-labelledby="section-${esc(section.id)}"><div class="binder__labelrow"><h2 class="binder__label" id="section-${esc(section.id)}">${esc(section.name)}</h2>${section.id === UNFILED.id ? '' : `<button class="binder__tool" type="button" data-folder-new="${esc(section.id)}" aria-label="Nova matéria em ${esc(section.name)}" title="Nova matéria">${icon('plus')}</button><button class="binder__tool" type="button" data-folder-rename="${esc(section.id)}" data-name="${esc(section.name)}" aria-label="Renomear seção ${esc(section.name)}" title="Renomear seção">${icon('pen')}</button><button class="binder__tool" type="button" data-folder-delete="${esc(section.id)}" data-name="${esc(section.name)}" aria-label="Excluir seção ${esc(section.name)}" title="Excluir seção">${icon('close')}</button>`}</div>${tabs ? `<ul class="binder__tabs">${tabs}</ul>` : '<p class="binder__empty">Nenhuma matéria nesta seção</p>'}</section>`;
   }).join('');
   const nav = loading ? '<p class="binder__empty">Abrindo o caderno…</p>' : sections || '<p class="binder__empty">Nenhuma pasta foi criada ainda.</p>';
-  return `<aside class="binder" id="binder" aria-label="Caderno"><div class="binder__head"><button id="go-home" class="wordmark" type="button" data-home><span class="wordmark__name">GerminaWiki</span><span class="wordmark__tag">caderno da turma</span></button><label class="binder__search">${icon('search')}<span class="visually-hidden">Buscar páginas</span><input id="search" type="search" placeholder="Buscar páginas" value="${esc(query)}" autocomplete="off"/><kbd aria-hidden="true">/</kbd></label></div><nav class="binder__nav" aria-label="Matérias e páginas">${nav}</nav><div class="binder__foot"><button id="open-profile" class="account" type="button" aria-label="Editar perfil"><span class="account__avatar">${avatarMarkup()}</span><span class="account__name">${esc(currentUser?.name ?? 'Minha conta')}</span></button><button id="logout" class="button button--quiet account__leave" type="button">${icon('leave')}<span>Sair</span></button></div></aside>`;
+  return `<aside class="binder" id="binder" aria-label="Caderno"><div class="binder__head"><button id="go-home" class="wordmark" type="button" data-home><span class="wordmark__name">GerminaWiki</span><span class="wordmark__tag">caderno da turma</span></button><label class="binder__search">${icon('search')}<span class="visually-hidden">Buscar páginas</span><input id="search" type="search" placeholder="Buscar páginas" value="${esc(query)}" autocomplete="off"/><kbd aria-hidden="true">/</kbd></label></div><nav class="binder__nav" aria-label="Matérias e páginas">${nav}${loading ? '' : `<button class="binder__add" type="button" data-folder-new="">${icon('plus')}Nova seção</button>`}</nav><div class="binder__foot"><button id="open-profile" class="account" type="button" aria-label="Editar perfil"><span class="account__avatar">${avatarMarkup()}</span><span class="account__name">${esc(currentUser?.name ?? 'Minha conta')}</span></button><button id="logout" class="button button--quiet account__leave" type="button">${icon('leave')}<span>Sair</span></button></div></aside>`;
+}
+function folderTools(id: string, name: string) {
+  return `<li class="tab__tools"><button type="button" data-folder-new="${esc(id)}">Nova subpasta</button><button type="button" data-folder-rename="${esc(id)}" data-name="${esc(name)}">Renomear</button><button type="button" data-folder-move="${esc(id)}" data-name="${esc(name)}">Mover</button><button type="button" data-folder-delete="${esc(id)}" data-name="${esc(name)}">Excluir</button></li>`;
+}
+/** Folder editing from the binder: create, rename, move and delete, then reload the tree. */
+async function folderAction(run: () => Promise<unknown>, done: string) {
+  try {
+    await run();
+    folders = await listFolders();
+    notice = done;
+  } catch (error) {
+    if (handleUnauthorized(error)) return;
+    notice = error instanceof ApiRequestError && error.status === 409
+      ? 'Não foi possível: já existe uma pasta com esse nome aqui, ou a pasta ainda tem conteúdo.'
+      : `Não foi possível alterar a pasta: ${error instanceof Error ? error.message : 'erro desconhecido'}.`;
+  }
+  render();
+}
+function bindFolderTools() {
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-new]').forEach(button => button.addEventListener('click', () => {
+    const parent = button.dataset.folderNew || null;
+    const name = window.prompt(parent ? 'Nome da nova pasta:' : 'Nome da nova seção:')?.trim();
+    if (name) void folderAction(() => createFolder(name, parent), parent ? 'Pasta criada.' : 'Seção criada.');
+  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-rename]').forEach(button => button.addEventListener('click', () => {
+    const name = window.prompt('Novo nome:', button.dataset.name ?? '')?.trim();
+    if (name && name !== button.dataset.name) void folderAction(() => updateFolder(button.dataset.folderRename!, { name }), 'Pasta renomeada.');
+  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-move]').forEach(button => button.addEventListener('click', () => {
+    const id = button.dataset.folderMove!;
+    const targets = allFolders().filter(folder => folder.id !== id);
+    const answer = window.prompt(`Mover "${button.dataset.name}" para qual pasta? Deixe vazio para virar uma seção.\n\n${targets.map(folder => folder.name).join(', ')}`);
+    if (answer === null || answer === undefined) return;
+    const key = answer.trim().toLocaleLowerCase('pt-BR');
+    const target = key ? targets.find(folder => folder.name.trim().toLocaleLowerCase('pt-BR') === key) : null;
+    if (key && !target) { notice = `Não foi possível: nenhuma pasta se chama "${answer.trim()}".`; render(); return; }
+    void folderAction(() => updateFolder(id, { parentFolderId: target?.id ?? null }), 'Pasta movida.');
+  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-folder-delete]').forEach(button => button.addEventListener('click', () => {
+    if (!window.confirm(`Excluir a pasta "${button.dataset.name}"? Esta ação não pode ser desfeita.`)) return;
+    const id = button.dataset.folderDelete!;
+    void folderAction(async () => {
+      await deleteFolder(id);
+      if (selectedSubject === id) selectedSubject = null;
+    }, 'Pasta excluída.');
+  }));
 }
 function binderPage(page: BinderPage) {
   const here = page.id === selectedPage?.id;
@@ -267,6 +316,7 @@ function setBinderOpen(open: boolean) {
   else document.querySelector<HTMLElement>('#binder-toggle')?.focus();
 }
 function bind() {
+  bindFolderTools();
   document.querySelectorAll<HTMLElement>('[data-home]').forEach(button => button.addEventListener('click', () => { void goHome(); }));
   document.querySelectorAll<HTMLElement>('[data-subject]').forEach(button => button.addEventListener('click', () => { void openSubject(button.dataset.subject!); }));
   document.querySelector<HTMLButtonElement>('#binder-toggle')?.addEventListener('click', () => setBinderOpen(!binderOpen));

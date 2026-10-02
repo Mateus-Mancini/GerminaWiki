@@ -1,9 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.0.1 (PATCH)
-- Modified principles: IV. Security and Data Integrity (conflict status clarified: HTTP 409 or 412)
-- Reason: the pages API (ms-germina-wiki) answers a stale If-Match with 412 Precondition Failed,
-  verified in production on 2026-10-01; the editor (specs/002-page-editor) treats 409 and 412 alike
+- Version change: 1.0.0 -> 1.1.0 (MINOR: normative ownership table changed)
+- Modified principles: I. Ownership and Scope (login-profile-ui reassigned to Clara);
+  IV. Security and Data Integrity (conflict status clarified: HTTP 409 or 412)
+- Reasons: Clara implemented login and profile in the workspace (PR #5), so the table records the
+  actual owner; the pages API (ms-germina-wiki) answers a stale If-Match with 412 Precondition
+  Failed, verified in production on 2026-10-01, and the editor (specs/002-page-editor) treats 409
+  and 412 alike
 - Added sections: none
 - Removed sections: none
 - Follow-up TODOs: confirm the original ratification date
@@ -16,7 +19,8 @@ Sync Impact Report
 ### I. Ownership and Scope Are Explicit
 Every feature MUST have one accountable owner and a clearly bounded responsibility. The
 current ownership map is: Clara owns app-shell-routing, sidebar-ui, and search-filter-ui;
-JP owns page-view-ui and comments-ui; Mancini owns login-profile-ui and editor-ui.
+JP owns page-view-ui and comments-ui; Clara also owns login-profile-ui; Mancini owns
+editor-ui.
 Ownership includes implementation, tests, integration support, and acceptance of the
 feature's behavior. Changes crossing ownership boundaries MUST be coordinated with the
 affected owners.
@@ -58,7 +62,7 @@ project's established logging or error-reporting mechanism without exposing priv
 | sidebar-ui | Clara | Árvore de pastas e arquivos em estilo Notion |
 | search-filter-ui | Clara | Barra de busca e filtro por grupo |
 | page-view-ui | JP | Renderização de markdown em leitura, wikilinks e painel de backlinks |
-| login-profile-ui | Mancini | Login e visualização/edição de perfil |
+| login-profile-ui | Clara | Login e visualização/edição de perfil (reatribuído de Mancini na v1.1.0) |
 | editor-ui | Mancini | Editor BlockNote, salvamento e tela de conflito de versão (HTTP 409/412) |
 | comments-ui | JP | Threads, âncoras clicáveis e respostas de administrador |
 
@@ -83,4 +87,4 @@ for new or materially expanded principles or sections, and PATCH for clarificati
 non-semantic corrections. Every feature review MUST verify ownership, contract, security,
 test, accessibility, and observability compliance relevant to the change.
 
-**Version**: 1.0.1 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-10-01
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-10-01

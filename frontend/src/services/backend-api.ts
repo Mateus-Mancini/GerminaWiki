@@ -36,6 +36,40 @@ export type UpdateOwnUserProfile = {
   bio?: string | null;
 };
 
+export type RegisterAccount = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type AdminReply = {
+  id: string;
+  commentId: string;
+  adminId: string;
+  text: string;
+  createdAt: string;
+};
+
+export type RemoteComment = {
+  id: string;
+  pageId: string;
+  userId: string;
+  anchor: { blockId: string };
+  text: string;
+  status: 'OPEN';
+  createdAt: string;
+  updatedAt: string;
+  adminReplies: AdminReply[];
+};
+
+export type CommentPage = {
+  items: RemoteComment[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+};
+
 export class ApiRequestError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -44,8 +78,7 @@ export class ApiRequestError extends Error {
 }
 
 const SESSION_KEY = 'germinawiki.auth-session';
-const env = (import.meta as ImportMeta & { env?: { VITE_API_BASE_URL?: string; DEV?: boolean } }).env;
-const baseUrl = env?.VITE_API_BASE_URL?.replace(/\/$/, '') || (env?.DEV ? 'http://localhost:8080' : '');
+const baseUrl = 'https://ih744ae7njca2on6vmsuutp7p40yosgh.lambda-url.sa-east-1.on.aws';
 
 export function getAuthSession(): AuthSession | null {
   try {
@@ -77,10 +110,6 @@ export function clearAuthSession() {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
-  if (!baseUrl) {
-    throw new Error('URL do backend não configurada. Defina VITE_API_BASE_URL no ambiente de build.');
-  }
-
   const headers = new Headers(init.headers);
   if (!headers.has('content-type')) headers.set('content-type', 'application/json');
 
@@ -128,6 +157,13 @@ export async function login(email: string, password: string): Promise<AuthSessio
   return session;
 }
 
+export function registerAccount(account: RegisterAccount) {
+  return request<OwnUserProfile>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(account)
+  }, false);
+}
+
 export function listFolders() {
   return request<FolderNode[]>('/api/folders/tree');
 }
@@ -146,6 +182,36 @@ export function getOwnUserProfile() {
 
 export function updateOwnUserProfile(profile: UpdateOwnUserProfile) {
   return request<OwnUserProfile>('/api/users/me', { method: 'PATCH', body: JSON.stringify(profile) });
+}
+
+export function listComments(pageId: string, page = 0, size = 100) {
+  const params = new URLSearchParams({ pageId, page: String(page), size: String(size) });
+  return request<CommentPage>(`/api/comments?${params.toString()}`);
+}
+
+export function createComment(pageId: string, blockId: string, text: string) {
+  return request<RemoteComment>('/api/comments', {
+    method: 'POST',
+    body: JSON.stringify({ pageId, anchor: { blockId }, text })
+  });
+}
+
+export function updateComment(commentId: string, text: string) {
+  return request<RemoteComment>(`/api/comments/${encodeURIComponent(commentId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ text })
+  });
+}
+
+export function deleteComment(commentId: string) {
+  return request<void>(`/api/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+}
+
+export function createAdminReply(commentId: string, text: string) {
+  return request<AdminReply>(`/api/comments/${encodeURIComponent(commentId)}/admin-replies`, {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  });
 }
 
 export async function findSubjectPage(subject: string): Promise<RemotePage | null> {

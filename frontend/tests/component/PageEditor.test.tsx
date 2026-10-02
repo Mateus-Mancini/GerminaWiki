@@ -138,7 +138,8 @@ describe('save failures keep the text', () => {
     await user.click(await screen.findByRole('button', { name: 'Salvar' }));
 
     expect(await screen.findByText(message)).toBeTruthy();
-    expect(screen.getByText('Texto que não pode se perder.')).toBeTruthy();
+    // Kept in the editor (and, on a conflict, also shown in the conflict screen).
+    expect(screen.getAllByText('Texto que não pode se perder.').length).toBeGreaterThan(0);
     expect(onClose).not.toHaveBeenCalled();
     // Reported without content (FR-016).
     const logged = [...warn.mock.calls, ...error.mock.calls].map(c => String(c[1]));

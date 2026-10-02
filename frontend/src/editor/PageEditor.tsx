@@ -7,9 +7,10 @@ import { useCreateBlockNote } from '@blocknote/react';
 import { createRoot } from 'react-dom/client';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as backend from '../services/backend-api';
-import { ApiRequestError, VersionConflictError, type RemotePage } from '../services/backend-api';
+import { ApiRequestError, VersionConflictError, type EditablePage, type RemotePage } from '../services/backend-api';
+import { ConflictScreen } from './ConflictScreen';
 import { rawMarkdownBlock } from './blocks/rawMarkdown';
-import type { BlockLike } from './codec/anchors';
+import { parseAnchor, type BlockLike } from './codec/anchors';
 import { decode, syncSnapshots, type Converter, type Decoded } from './codec/decode';
 import { encode } from './codec/encode';
 import { report } from './report';
@@ -28,6 +29,9 @@ export type PageEditorProps = {
   /** Gives tests and extensions the BlockNote editor instance once it exists. */
   onEditorReady?: (editor: unknown) => void;
 };
+
+type Mine = { title: string; content: string };
+type Conflict = { mine: Mine; latest: EditablePage; lastEditor: { name: string; at: string } | null };
 
 type Status =
   | { kind: 'loading' }
@@ -77,6 +81,8 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
   const [title, setTitle] = useState('');
   const [contentChanged, setContentChanged] = useState(false);
   const [confirming, setConfirming] = useState<((leave: boolean) => void) | null>(null);
+  const [conflict, setConflict] = useState<Conflict | null>(null);
+  const [aside, setAside] = useState<Mine | null>(null);
   const decoded = useRef<Decoded | null>(null);
   const etag = useRef('');
   const loading = useRef(true);
@@ -88,6 +94,20 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
 
   useEffect(() => { onEditorReady?.(editor); }, [editor, onEditorReady]);
 
+  /** Puts a page version in the editor as the new starting point (load, discard, continue). */
+  const applyVersion = useCallback((version: EditablePage) => {
+    loading.current = true;
+    const next = decode(version.page.content, converter);
+    editor.replaceBlocks(editor.document, (next.blocks.length ? next.blocks : [{ type: 'paragraph' }]) as never);
+    syncSnapshots(next, editor.document as BlockLike[]);
+    decoded.current = next;
+    etag.current = version.etag;
+    setPage(version.page);
+    setTitle(version.page.title);
+    setContentChanged(false);
+    loading.current = false;
+  }, [converter, editor]);
+
   // Load the page, decode it and hand the blocks to the editor.
   const load = useCallback(() => {
     let cancelled = false;
@@ -95,16 +115,8 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
     loading.current = true;
     api.getPageForEdit(pageId).then(result => {
       if (cancelled) return;
-      const next = decode(result.page.content, converter);
-      if (next.blocks.length) editor.replaceBlocks(editor.document, next.blocks as never);
-      syncSnapshots(next, editor.document as BlockLike[]);
-      decoded.current = next;
-      etag.current = result.etag;
-      setPage(result.page);
-      setTitle(result.page.title);
-      setContentChanged(false);
+      applyVersion(result);
       setStatus({ kind: 'editing' });
-      loading.current = false;
       requestAnimationFrame(() => {
         try {
           editor.setTextCursorPosition(editor.document[0], 'start');
@@ -120,7 +132,7 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
       setStatus({ kind: 'load_failed', status: httpStatus });
     });
     return () => { cancelled = true; };
-  }, [api, converter, editor, pageId]);
+  }, [api, applyVersion, editor, pageId]);
 
   useEffect(load, [load]);
 
@@ -149,36 +161,68 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
 
   const close = useCallback((result: CloseResult) => onClose(result), [onClose]);
 
-  const save = useCallback(async () => {
-    const current = decoded.current;
-    if (!current || !page || titleProblem(title) || status.kind === 'saving') return;
-    const content = encode(current, editor.document as BlockLike[], converter);
-    if (content === current.original && title.trim() === page.title) return;
-    const changes = title.trim() === page.title ? { content } : { title: title.trim(), content };
+  const onSaveFailure = useCallback(async (error: unknown, mine: Mine) => {
+    if (error instanceof VersionConflictError) {
+      report('editor.conflict', { pageId, status: error.status, version: error.currentVersion ?? undefined });
+      setStatus({ kind: 'conflict' });
+      try {
+        const latest = await api.getPageForEdit(pageId);
+        const lastEditor = latest.page.updatedBy
+          ? await api.getPublicProfile(latest.page.updatedBy)
+            .then(profile => ({ name: profile.name, at: latest.page.updatedAt ?? '' }))
+            .catch(() => null)
+          : null;
+        setConflict({ mine, latest, lastEditor });
+      } catch (loadError) {
+        if (loadError instanceof ApiRequestError && loadError.status === 404) setStatus({ kind: 'deleted' });
+      }
+    } else if (error instanceof ApiRequestError && error.status === 401) {
+      report('editor.auth_expired', { pageId, status: 401 });
+      setStatus({ kind: 'reauth' });
+    } else if (error instanceof ApiRequestError && error.status === 403) {
+      report('editor.forbidden', { pageId, status: 403 });
+      setStatus({ kind: 'forbidden' });
+    } else if (error instanceof ApiRequestError && error.status === 404) {
+      report('editor.save_failed', { pageId, status: 404 });
+      setStatus({ kind: 'deleted' });
+    } else {
+      report('editor.save_failed', { pageId, status: error instanceof ApiRequestError ? error.status : undefined });
+      setStatus({ kind: 'failed' });
+    }
+  }, [api, pageId]);
+
+  /** Saves `mine` if the page is still at `expected`; the title is sent only when it changed. */
+  const submit = useCallback(async (mine: Mine, savedTitle: string, expected: string) => {
     setStatus({ kind: 'saving' });
+    const changes = mine.title === savedTitle ? { content: mine.content } : { title: mine.title, content: mine.content };
     try {
-      const result = await api.savePage(pageId, changes, etag.current);
+      const result = await api.savePage(pageId, changes, expected);
       etag.current = result.etag;
       close({ saved: true, page: result.page });
     } catch (error) {
-      if (error instanceof VersionConflictError) {
-        report('editor.conflict', { pageId, status: error.status, version: error.currentVersion ?? undefined });
-        setStatus({ kind: 'conflict' });
-      } else if (error instanceof ApiRequestError && error.status === 401) {
-        report('editor.auth_expired', { pageId, status: 401 });
-        setStatus({ kind: 'reauth' });
-      } else if (error instanceof ApiRequestError && error.status === 403) {
-        report('editor.forbidden', { pageId, status: 403 });
-        setStatus({ kind: 'forbidden' });
-      } else if (error instanceof ApiRequestError && error.status === 404) {
-        report('editor.save_failed', { pageId, status: 404 });
-        setStatus({ kind: 'deleted' });
-      } else {
-        report('editor.save_failed', { pageId, status: error instanceof ApiRequestError ? error.status : undefined });
-        setStatus({ kind: 'failed' });
-      }
+      await onSaveFailure(error, mine);
     }
-  }, [api, close, converter, editor, page, pageId, status.kind, title]);
+  }, [api, close, onSaveFailure, pageId]);
+
+  const save = useCallback(async () => {
+    const current = decoded.current;
+    if (!current || !page || titleProblem(title) || status.kind === 'saving') return;
+    const mine = { title: title.trim(), content: encode(current, editor.document as BlockLike[], converter) };
+    if (mine.content === current.original && mine.title === page.title) return;
+    await submit(mine, page.title, etag.current);
+  }, [converter, editor, page, status.kind, submit, title]);
+
+  const resolveConflict = useCallback((choice: 'discard' | 'continue' | 'replace') => {
+    if (!conflict) return;
+    setConflict(null);
+    if (choice === 'replace') {
+      void submit(conflict.mine, conflict.latest.page.title, conflict.latest.etag);
+      return;
+    }
+    applyVersion(conflict.latest);
+    setAside(choice === 'continue' ? conflict.mine : null);
+    setStatus({ kind: 'editing' });
+  }, [applyVersion, conflict, submit]);
 
   const requestClose = useCallback((): Promise<boolean> => {
     if (!hasUnsavedChanges()) {
@@ -258,7 +302,26 @@ export function PageEditor({ pageId, onClose, api = backend, handleRef, onEditor
         </div>
       )}
 
-      <div className="page-editor__sheet" hidden={status.kind === 'loading'}>
+      {conflict && (
+        <ConflictScreen
+          mine={conflict.mine}
+          published={conflict.latest.page}
+          lastEditor={conflict.lastEditor}
+          onDiscard={() => resolveConflict('discard')}
+          onContinue={() => resolveConflict('continue')}
+          onReplace={() => resolveConflict('replace')}
+        />
+      )}
+
+      {aside && (
+        <aside className="page-editor__aside" aria-label="Sua versão anterior">
+          <h2>Sua versão anterior{aside.title !== title.trim() ? `: ${aside.title}` : ''}</h2>
+          <pre>{aside.content.split('\n').filter(line => !parseAnchor(line)).join('\n')}</pre>
+          <button type="button" onClick={() => setAside(null)}>Fechar</button>
+        </aside>
+      )}
+
+      <div className="page-editor__sheet" hidden={status.kind === 'loading' || conflict !== null}>
         {page && (
           <>
             <input

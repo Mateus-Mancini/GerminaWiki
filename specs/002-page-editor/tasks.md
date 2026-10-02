@@ -143,7 +143,7 @@ The codec is the data-integrity core: every save goes through it.
 ### Implementation
 
 - [X] T022 [US2] `frontend/src/editor/ConflictScreen.tsx`: `diffLines` from `diff`, two columns at ≥ 900 px and unified below, the three actions, and the confirmation dialog (R6)
-- [ ] T023 [US2] Wire `VersionConflictError` in `PageEditor.tsx`: fetch the published page and `getPublicProfile(updatedBy)`, move to `conflict`, and `report('editor.conflict')`
+- [X] T023 [US2] Wire `VersionConflictError` in `PageEditor.tsx`: fetch the published page and `getPublicProfile(updatedBy)`, move to `conflict`, and `report('editor.conflict')`
 
 ---
 

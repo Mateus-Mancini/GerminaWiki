@@ -220,7 +220,8 @@ The codec is the data-integrity core: every save goes through it.
 - [X] T038 [P] Large-page check: a 2,000-line fixture test in `frontend/tests/unit/codec/performance.test.ts` (decode + encode under 500 ms in jsdom), plus a manual check of SC-005 per quickstart §7
   - Result (2026-10-01): the full round trip (decode, plus encoding unchanged and after an edit) takes about 0.7 s in jsdom on the development machine. Decoding dominates, because it checks every segment's fidelity. That is within SC-005's 2 s for opening, but above the 500 ms first budgeted for the codec alone, so the test bounds are decode < 1.5 s and encode < 0.5 s, with headroom for CI.
 - [X] T039 [P] `README.md`: an editor section (how to edit, conflict behaviour, the stored anchor format) linking this spec
-- [ ] T040 Build check: `npm run build` produces a separate editor chunk, and the main chunk contains no BlockNote (quickstart §1)
+- [X] T040 Build check: `npm run build` produces a separate editor chunk, and the main chunk contains no BlockNote (quickstart §1)
+  - Result (2026-10-01): the main chunk is 24 KB with no BlockNote or ProseMirror code, and loads the editor through one dynamic import. The editor chunk is 1.2 MB (375 KB gzipped), fetched on the first "Editar" or prefetched when the reading view is idle. Vite warns about its size; splitting it further (code-block highlighting, emoji data) is a possible follow-up, not needed for SC-005.
 - [ ] T041 Run quickstart §2–§7 against production with a QA page and record the results here; then clean up
 - [ ] T042 Ask Clara for a PATCH amendment of constitution IV ("HTTP 409" → "a version conflict (HTTP 409 or 412)"), or ask Camilla to return 409 (plan.md, Constitution Check note). In the same amendment, propose `report()` (research R14) as the project's logging mechanism for principle V.
 

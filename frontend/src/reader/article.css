@@ -1,0 +1,58 @@
+/* Reading view article (rendered by reader/article.ts). Baseline legibility; the visual world comes later. */
+
+.article-body {
+  margin: 0 0 28px;
+  color: #2b3d36;
+  font-size: 16px;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.article-body > :first-child { margin-top: 0; }
+.article-body :is(h1, h2, h3, h4) { scroll-margin-top: 88px; color: #173e35; line-height: 1.25; margin: 1.6em 0 0.5em; }
+.article-body h1 { font-size: 1.75em; }
+.article-body h2 { font-size: 1.4em; padding-bottom: 0.25em; border-bottom: 1px solid #e4e9e1; }
+.article-body h3 { font-size: 1.15em; }
+.article-body :is(p, ul, ol, blockquote, pre, figure, .article-table) { margin: 0 0 1em; }
+.article-body :is(ul, ol) { padding-left: 1.5em; }
+.article-body li + li { margin-top: 0.25em; }
+
+.article-body a { color: #1d5b8f; text-decoration: underline; text-underline-offset: 2px; }
+.article-body a:hover { color: #123f66; }
+.article-body a.wikilink { text-decoration: none; border-bottom: 1px solid currentColor; cursor: pointer; }
+.article-body a.wikilink--missing { color: #b0302a; border-bottom-style: dashed; cursor: help; }
+
+.article-body blockquote {
+  padding: 0.25em 1em;
+  border-left: 3px solid #b9cbbd;
+  color: #4f6158;
+}
+
+.article-body code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: #eef2ec;
+  font: 0.9em/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.article-body pre {
+  overflow-x: auto;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #1f2a26;
+  color: #e8efe9;
+}
+
+.article-body pre code { padding: 0; background: none; color: inherit; font-size: 0.875em; }
+
+.article-body img { display: block; max-width: 100%; height: auto; border-radius: 6px; }
+.article-body figcaption { margin-top: 6px; font-size: 0.85em; color: #6a7c72; }
+
+.article-table { overflow-x: auto; }
+.article-body table { border-collapse: collapse; min-width: 50%; font-size: 0.95em; }
+.article-body :is(th, td) { padding: 6px 12px; border: 1px solid #d9e1d6; text-align: left; vertical-align: top; }
+.article-body th { background: #f2f6ef; }
+
+.article-body hr { border: 0; border-top: 1px solid #e4e9e1; margin: 2em 0; }
+
+.topic-nav a[data-level="3"] { padding-left: 20px; }
